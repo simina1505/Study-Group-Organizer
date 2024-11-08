@@ -1,38 +1,40 @@
-import { View, Text, SafeAreaView, ScrollView } from "react-native";
+import { View, Text, SafeAreaView, ScrollView, Alert } from "react-native";
 import React from "react";
 import FormField from "../../components/FormField";
 import { useState } from "react";
 import CustomButton from "../../components/CustomButton";
 import { Link, router } from "expo-router";
-import { useGlobalContext } from "../../context/GlobalProvider";
-import { getCurrentUser } from "../../lib/appwrite";
+import axios from "axios";
+
 const SignIn = () => {
-	const { setUser, setIsLogged } = useGlobalContext();
+	// const { setUser, setIsLogged } = useGlobalContext();
 	const [isSubmiting, setIsSubmiting] = useState(false);
 	const [form, setForm] = useState({
 		email: "",
 		password: "",
 	});
 
-	const submit = async () => {
+	const submit = () => {
 		if (!form.email || !form.password) {
 			Alert.alert("Error", "Please fill in all the fields");
 		}
 		setIsSubmiting(true);
-		try {
-			await signIn(form.email, form.password);
-			const result = await getCurrentUser();
-			setUser(result);
-			setIsLogged(true);
 
-			Alert.alert("Success", "User signed in successfully!");
-			router.replace("/home-page");
-		} catch (error) {
-			console.log("sign in 31");
-			Alert.alert("Error", error.message);
-		} finally {
-			setIsSubmiting(false);
-		}
+		const user = {
+			email: form.email,
+			password: form.password,
+		};
+		axios
+			.post("http://192.168.1.106:8000/signIn", user)
+			.then(() => {
+				Alert.alert("Success", "User logged in successfully!");
+				router.replace("/home-page");
+			})
+			.catch((error) => {
+				console.log("sign in error:", error);
+				Alert.alert("Error", error.message);
+			});
+		setIsSubmiting(false);
 	};
 	return (
 		<SafeAreaView className=" h-full">
@@ -52,6 +54,7 @@ const SignIn = () => {
 						value={form.password}
 						handleChangeText={(e) => setForm({ ...form, password: e })}
 						otherStyles="mx-6"
+						a
 						placeholder="type password"
 					/>
 					<CustomButton

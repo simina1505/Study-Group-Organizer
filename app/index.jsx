@@ -5,12 +5,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import CustomButton from "../components/CustomButton";
 import ExpoStatusBar from "expo-status-bar/build/ExpoStatusBar";
 import { useState } from "react";
-import { useGlobalContext } from "../context/GlobalProvider";
 //my screen
 export default function App() {
-	const { isLoading, isLogged } = useGlobalContext();
+	// const { isLoading, isLogged } = useGlobalContext();
 
-	if (!isLoading && isLogged) return <Redirect href="/home-page" />;
+	// if (!isLoading && isLogged) return <Redirect href="/home-page" />;
 	return (
 		// <View className="flex-1 items-center justify-center bg-white">
 		// 	<Text className="text-3xl font-pblack">Study Group Organizer!</Text>

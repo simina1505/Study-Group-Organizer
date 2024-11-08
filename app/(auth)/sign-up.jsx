@@ -4,51 +4,54 @@ import FormField from "../../components/FormField";
 import { useState } from "react";
 import CustomButton from "../../components/CustomButton";
 import { Link, router } from "expo-router";
-import { createUser } from "../../lib/appwrite";
-import { useGlobalContext } from "../../context/GlobalProvider";
+import axios from "axios";
+
 const SignUp = () => {
-	const { setUser, setIsLogged } = useGlobalContext();
+	// const { setUser, setIsLogged } = useGlobalContext();
 	const [isSubmiting, setIsSubmiting] = useState(false);
 	const [form, setForm] = useState({
-		lastName: "",
-		firstName: "",
 		username: "",
 		email: "",
 		password: "",
+		firstName: "",
+		lastName: "",
+		city: "",
 	});
 
-	const submit = async () => {
+	const submit = () => {
 		if (
 			!form.email ||
 			!form.password ||
 			!form.username ||
 			!form.firstName ||
-			!form.lastName
+			!form.lastName ||
+			!form.city
 		) {
 			Alert.alert("Error", "Please fill in all the fields");
 		}
 		setIsSubmiting(true);
-		try {
-			const result = await createUser(
-				form.email,
-				form.password,
-				form.username,
-				form.firstName,
-				form.lastName
-			);
-			setUser(result);
-			setIsLogged(true);
 
-			// set it to global state
-
-			router.replace("/home-page");
-		} catch (error) {
-			console.log("sign up 46");
-			Alert.alert("Error", error.message);
-		} finally {
-			setIsSubmiting(false);
-		}
+		const user = {
+			username: form.username,
+			email: form.email,
+			password: form.password,
+			firstName: form.firstName,
+			lastName: form.lastName,
+			city: form.city,
+		};
+		axios
+			.post("http://192.168.1.106:8000/signUp", user)
+			.then(() => {
+				Alert.alert("Success", "User created successfully!");
+				router.replace("/home-page");
+			})
+			.catch((error) => {
+				console.log("sign up 46");
+				Alert.alert("Error", error.message);
+			});
+		setIsSubmiting(false);
 	};
+
 	return (
 		<SafeAreaView className=" h-full">
 			<ScrollView>
@@ -89,6 +92,15 @@ const SignUp = () => {
 						keyboardType="email-address"
 						placeholder="type email ..."
 					/>
+					<FormField
+						title="City"
+						value={form.city}
+						handleChangeText={(e) => setForm({ ...form, city: e })}
+						otherStyles="mx-6"
+						keyboardType="city"
+						placeholder="type city ..."
+					/>
+
 					<FormField
 						title="Password"
 						value={form.password}
