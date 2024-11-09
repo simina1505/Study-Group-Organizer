@@ -5,7 +5,6 @@ import { useState } from "react";
 import CustomButton from "../../components/CustomButton";
 import { Link, router } from "expo-router";
 import axios from "axios";
-import AsyncStorage from "@react-native-async-storage/async-storage"; // Import AsyncStorage
 
 const SignUp = () => {
 	// const { setUser, setIsLogged } = useGlobalContext();
