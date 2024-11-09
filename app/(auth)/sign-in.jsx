@@ -5,6 +5,7 @@ import { useState } from "react";
 import CustomButton from "../../components/CustomButton";
 import { Link, router } from "expo-router";
 import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage"; // Import AsyncStorage
 
 const SignIn = () => {
 	// const { setUser, setIsLogged } = useGlobalContext();
@@ -25,8 +26,19 @@ const SignIn = () => {
 			password: form.password,
 		};
 		axios
-			.post("http://192.168.1.106:8000/signIn", user)
-			.then(() => {
+			.post("http://192.168.1.106:8000/signIn", user, {
+				headers: {
+					"Content-Type": "application/json",
+				},
+			})
+			.then(async (response) => {
+				if (response.status === 201) {
+					const { token } = response.data;
+					console.log(token);
+					await AsyncStorage.setItem("token", token);
+					const userData = response.data.user;
+					await AsyncStorage.setItem("loggedUser", JSON.stringify(userData));
+				}
 				Alert.alert("Success", "User logged in successfully!");
 				router.replace("/home-page");
 			})

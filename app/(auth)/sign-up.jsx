@@ -5,6 +5,7 @@ import { useState } from "react";
 import CustomButton from "../../components/CustomButton";
 import { Link, router } from "expo-router";
 import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage"; // Import AsyncStorage
 
 const SignUp = () => {
 	// const { setUser, setIsLogged } = useGlobalContext();
@@ -43,13 +44,15 @@ const SignUp = () => {
 			.post("http://192.168.1.106:8000/signUp", user)
 			.then(() => {
 				Alert.alert("Success", "User created successfully!");
-				router.replace("/home-page");
+				router.replace("/sign-in");
 			})
 			.catch((error) => {
-				console.log("sign up 46");
+				console.log("sign up error", error);
 				Alert.alert("Error", error.message);
+			})
+			.finally(() => {
+				setIsSubmitting(false);
 			});
-		setIsSubmiting(false);
 	};
 
 	return (
@@ -118,7 +121,7 @@ const SignUp = () => {
 
 					<View className="justify-center flex-row gap-2 ">
 						<Text className="text-lg text-gray-100 font-pregular">
-							Have an account already??
+							Have an account already?
 						</Text>
 						<Link
 							href="/sign-in"
