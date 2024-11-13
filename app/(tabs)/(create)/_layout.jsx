@@ -9,7 +9,7 @@ const CreateLayout = () => {
       <Stack>
         <Stack.Screen name="create-group" options={{ headerShown: false }} />
       </Stack>
-      <StatusBar backgroundColor="#161622" style="dark" />
+      <StatusBar />
     </>
   );
 };
