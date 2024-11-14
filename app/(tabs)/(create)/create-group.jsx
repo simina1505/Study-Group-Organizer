@@ -5,7 +5,6 @@ import {
   ScrollView,
   Alert,
   Switch,
-  TouchableOpacity,
 } from "react-native";
 import React from "react";
 import FormField from "../../../components/FormField";
@@ -80,17 +79,20 @@ const createGroup = () => {
     };
 
     console.log(group);
-    axios
-      .post("http://192.168.0.101:8000/createGroup", group)
-      .then((response) => {
-        Alert.alert("Success", response.data);
-        router.push("/my-groups");
-      })
-      .catch((error) => {
-        console.log("group creation error:", error);
-        Alert.alert("Error", error.message);
-      });
-    setIsSubmiting(false);
+    try {
+      await axios
+        .post("http://192.168.0.101:8000/createGroup", group)
+        .then((response) => {
+          router.replace("/my-groups");
+        })
+        .catch((error) => {
+          console.log("group creation error:", error);
+        });
+    } catch (error) {
+      console.log(error.message);
+    } finally {
+      setIsSubmiting(false);
+    }
   };
 
   return (
@@ -133,20 +135,13 @@ const createGroup = () => {
             />
           </View>
 
-          {/* <CustomButton
+          <CustomButton
             title="Create"
             handlePress={submit}
             containerStyles="m-6"
-            isLoading={false}
+            isLoading={isSubmiting}
             textStyles="text-white px-2 p-2"
-          /> */}
-
-          <TouchableOpacity
-            handlePress={submit}
-            activeOpacity={0.7}
-            className="bg-black rounded-xl items-center m-6">
-            <Text className="text-white px-2 p-2">Create</Text>
-          </TouchableOpacity>
+          />
         </View>
       </ScrollView>
     </SafeAreaView>
