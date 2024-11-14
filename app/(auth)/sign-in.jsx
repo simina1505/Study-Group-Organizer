@@ -71,7 +71,6 @@ const SignIn = () => {
             value={form.password}
             handleChangeText={(e) => setForm({ ...form, password: e })}
             otherStyles="mx-6"
-            a
             placeholder="type password"
           />
           <CustomButton

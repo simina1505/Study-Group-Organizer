@@ -7,6 +7,7 @@ const CreateLayout = () => {
   return (
     <>
       <Stack>
+        <Stack.Screen name="my-groups" options={{ headerShown: false }} />
         <Stack.Screen name="create-group" options={{ headerShown: false }} />
       </Stack>
       <StatusBar />
