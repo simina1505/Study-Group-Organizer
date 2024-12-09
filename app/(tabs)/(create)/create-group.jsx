@@ -78,10 +78,9 @@ const createGroup = () => {
       creator: loggedUser,
     };
 
-    console.log(group);
     try {
       await axios
-        .post("http://192.168.0.101:8000/createGroup", group)
+        .post("http://192.168.0.100:8000/createGroup", group)
         .then((response) => {
           router.replace("/my-groups");
         })

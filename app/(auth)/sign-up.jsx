@@ -40,7 +40,7 @@ const SignUp = () => {
       city: form.city,
     };
     axios
-      .post("http://192.168.0.101:8000/signUp", user)
+      .post("http://192.168.0.100:8000/signUp", user)
       .then(() => {
         Alert.alert("Success", "User created successfully!");
         router.replace("/sign-in");
@@ -53,7 +53,6 @@ const SignUp = () => {
         setIsSubmitting(false);
       });
   };
-
   return (
     <SafeAreaView className=" h-full">
       <ScrollView>
@@ -64,7 +63,6 @@ const SignUp = () => {
             value={form.firstName}
             handleChangeText={(e) => setForm({ ...form, firstName: e })}
             otherStyles="mx-6"
-            keyboardType="first-name"
             placeholder="type first name ..."
           />
 
@@ -73,7 +71,6 @@ const SignUp = () => {
             value={form.lastName}
             handleChangeText={(e) => setForm({ ...form, lastName: e })}
             otherStyles="mx-6"
-            keyboardType="last-name"
             placeholder="type last name ..."
           />
 
@@ -82,7 +79,6 @@ const SignUp = () => {
             value={form.username}
             handleChangeText={(e) => setForm({ ...form, username: e })}
             otherStyles="mx-6"
-            keyboardType="email-address"
             placeholder="type username ..."
           />
 
@@ -91,7 +87,6 @@ const SignUp = () => {
             value={form.email}
             handleChangeText={(e) => setForm({ ...form, email: e })}
             otherStyles="mx-6"
-            keyboardType="email-address"
             placeholder="type email ..."
           />
           <FormField
@@ -99,7 +94,6 @@ const SignUp = () => {
             value={form.city}
             handleChangeText={(e) => setForm({ ...form, city: e })}
             otherStyles="mx-6"
-            keyboardType="city"
             placeholder="type city ..."
           />
 

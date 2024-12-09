@@ -34,7 +34,7 @@ const MyGroups = () => {
     try {
       const loggedUser = await getLoggedUser();
       await axios
-        .get(`http://192.168.0.101:8000/fetchOwnedGroups/${loggedUser}`)
+        .get(`http://192.168.0.100:8000/fetchOwnedGroups/${loggedUser}`)
         .then((response) => {
           setOwnedGroups(response.data.groups);
         })
@@ -43,7 +43,7 @@ const MyGroups = () => {
         });
 
       await axios
-        .get(`http://192.168.0.101:8000/fetchMemberGroups/${loggedUser}`)
+        .get(`http://192.168.0.100:8000/fetchMemberGroups/${loggedUser}`)
         .then((response) => {
           setMemberGroups(response.data.groups);
         })

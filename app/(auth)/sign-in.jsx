@@ -26,7 +26,7 @@ const SignIn = () => {
       password: form.password,
     };
     axios
-      .post("http://192.168.0.101:8000/signIn", user, {
+      .post("http://192.168.0.100:8000/signIn", user, {
         headers: {
           "Content-Type": "application/json",
         },
@@ -38,7 +38,6 @@ const SignIn = () => {
 
           const { token } = response.data;
           await AsyncStorage.setItem("token", token);
-
           const loggedUser = response.data.username;
           await AsyncStorage.setItem("loggedUser", loggedUser);
           Alert.alert("Success", response.message);
@@ -59,7 +58,7 @@ const SignIn = () => {
         <View className="w-full justify-center min-h-[85vh] px-4 my-6 ">
           <Text className="mx-6 mb-6 text-xl">Log in </Text>
           <FormField
-            title="Email/Username"
+            title="Email"
             value={form.email}
             handleChangeText={(e) => setForm({ ...form, email: e })}
             otherStyles="mx-6"
@@ -80,7 +79,6 @@ const SignIn = () => {
             isLoading={isSubmiting}
             textStyles="text-white px-2 p-2"
           />
-
           <View className="justify-center flex-row gap-2 ">
             <Text className="text-lg text-gray-100 font-pregular">
               Don't have account?
