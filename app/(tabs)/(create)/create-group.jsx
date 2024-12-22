@@ -31,6 +31,7 @@ const createGroup = () => {
     description: "",
     privacy: "Public",
   });
+  const [errors, setErrors] = useState({});
 
   const getLoggedUser = async () => {
     try {
@@ -49,6 +50,33 @@ const createGroup = () => {
       ...prevForm,
       privacy: prevForm.privacy === "Public" ? "Private" : "Public",
     }));
+  };
+
+  const handleChangeText = async (field, value) => {
+    setForm({ ...form, [field]: value });
+
+    let errorMessage = "";
+    errorMessage = await validateGroupName(value);
+
+    setErrors({ ...errors, [field]: errorMessage });
+  };
+
+  const validateGroupName = async (name) => {
+    if (!name) return "Group name is required.";
+    try {
+      const response = await axios.post(
+        "http://172.20.10.5:8000/checkGroupExistence",
+        {
+          field: "name",
+          value: name,
+        }
+      );
+      if (!response.data.available) return "Group name is already taken.";
+    } catch (error) {
+      console.error("Error checking group name availability:", error);
+      return "Error checking group name.";
+    }
+    return "";
   };
 
   const submit = async () => {
@@ -77,14 +105,18 @@ const createGroup = () => {
       privacy: form.privacy,
       creator: loggedUser,
     };
-
     try {
       await axios
-        .post("http://192.168.0.100:8000/createGroup", group)
+        .post("http://172.20.10.5:8000/createGroup", group)
         .then((response) => {
-          router.replace("/my-groups");
+          if (response && response.data.success === true) {
+            router.replace("/my-groups");
+          } else {
+            Alert.alert("Error", "Please fix all the fields.");
+          }
         })
         .catch((error) => {
+          Alert.alert("Error", error.message);
           console.log("group creation error:", error);
         });
     } catch (error) {
@@ -92,6 +124,10 @@ const createGroup = () => {
     } finally {
       setIsSubmiting(false);
     }
+  };
+
+  const cancel = () => {
+    router.replace("/my-groups");
   };
 
   return (
@@ -102,11 +138,15 @@ const createGroup = () => {
           <FormField
             title="Group Name"
             value={form.name}
-            handleChangeText={(e) => setForm({ ...form, name: e })}
+            handleChangeText={(e) => handleChangeText("name", e)}
             otherStyles="mx-6"
             keyboardType="default"
             placeholder="type group name"
           />
+          {errors["name"] && (
+            <Text className="mx-6 text-red-600 text-sm">{errors["name"]}</Text>
+          )}
+
           <FormField
             title="Description"
             value={form.description}
@@ -133,14 +173,22 @@ const createGroup = () => {
               onValueChange={togglePrivacy}
             />
           </View>
+          <View className="flex-row items-center mx-14 mb-4">
+            <CustomButton
+              title="Create"
+              handlePress={submit}
+              containerStyles="m-6"
+              isLoading={isSubmiting}
+              textStyles="text-white px-2 p-2"
+            />
 
-          <CustomButton
-            title="Create"
-            handlePress={submit}
-            containerStyles="m-6"
-            isLoading={isSubmiting}
-            textStyles="text-white px-2 p-2"
-          />
+            <CustomButton
+              title="Cancel"
+              handlePress={cancel}
+              containerStyles="m-6"
+              textStyles="text-white px-2 p-2"
+            />
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>

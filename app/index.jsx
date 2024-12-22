@@ -24,7 +24,7 @@ export default function App() {
           height: "100%",
         }}>
         <View className="flex-1 items-center justify-center ">
-          <Text>Find your study buddies!</Text>
+          <Text className=" text-xl ">Study Time Planner</Text>
           <CustomButton
             title="Click here to start"
             handlePress={() => router.push("/sign-in")}

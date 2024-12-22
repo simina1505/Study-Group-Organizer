@@ -18,17 +18,85 @@ const SignUp = () => {
     city: "",
   });
 
-  const submit = () => {
-    if (
-      !form.email ||
-      !form.password ||
-      !form.username ||
-      !form.firstName ||
-      !form.lastName ||
-      !form.city
-    ) {
-      Alert.alert("Error", "Please fill in all the fields");
+  const [errors, setErrors] = useState({});
+
+  const validateUsername = async (username) => {
+    if (!username) return "Username is required.";
+    if (username.length < 3)
+      return "Username must be at least 3 characters long.";
+
+    try {
+      const response = await axios.post(
+        "http://172.20.10.5:8000/checkUserExistence",
+        {
+          field: "username",
+          value: username,
+        }
+      );
+      if (!response.data.available) return "Username is already taken.";
+    } catch (error) {
+      console.error("Error checking username availability:", error);
+      return "Error checking username.";
     }
+    return "";
+  };
+
+  const validateEmail = async (email) => {
+    if (!email) return "Email is required.";
+    if (!/\S+@\S+\.\S+/.test(email)) return "Invalid email format.";
+
+    try {
+      const response = await axios.post(
+        "http://172.20.10.5:8000/checkUserExistence",
+        {
+          field: "email",
+          value: email,
+        }
+      );
+      if (!response.data.available) return "Email is already in use.";
+    } catch (error) {
+      console.error("Error checking email availability:", error);
+      return "Error checking email.";
+    }
+    return "";
+  };
+
+  const validatePassword = (password) => {
+    if (!password) return "Password is required.";
+    if (password.length < 8)
+      return "Password must be at least 8 characters long.";
+    if (!/[A-Z]/.test(password))
+      return "Password must contain at least one uppercase letter.";
+    if (!/[a-z]/.test(password))
+      return "Password must contain at least one lowercase letter.";
+    if (!/[0-9]/.test(password))
+      return "Password must contain at least one number.";
+    return "";
+  };
+
+  const handleChangeText = async (field, value) => {
+    setForm({ ...form, [field]: value });
+
+    let errorMessage = "";
+    if (field === "username") errorMessage = await validateUsername(value);
+    if (field === "email") errorMessage = await validateEmail(value);
+    if (field === "password") errorMessage = validatePassword(value);
+
+    setErrors({ ...errors, [field]: errorMessage });
+  };
+
+  const submit = () => {
+    const formErrors = Object.values(errors).filter((error) => error !== "");
+    if (formErrors.length > 0) {
+      Alert.alert("Error", "Please fix the errors in the form.");
+      return;
+    }
+
+    if (Object.values(form).some((field) => !field)) {
+      Alert.alert("Error", "Please fill in all the fields.");
+      return;
+    }
+
     setIsSubmiting(true);
 
     const user = {
@@ -40,7 +108,7 @@ const SignUp = () => {
       city: form.city,
     };
     axios
-      .post("http://192.168.0.100:8000/signUp", user)
+      .post("http://172.20.10.5:8000/signUp", user)
       .then(() => {
         Alert.alert("Success", "User created successfully!");
         router.replace("/sign-in");
@@ -58,52 +126,45 @@ const SignUp = () => {
       <ScrollView>
         <View className="w-full justify-center min-h-[85vh] px-4 my-6 ">
           <Text className="mx-6 mb-6 text-xl">Create an account</Text>
-          <FormField
-            title="First Name"
-            value={form.firstName}
-            handleChangeText={(e) => setForm({ ...form, firstName: e })}
-            otherStyles="mx-6"
-            placeholder="type first name ..."
-          />
-
-          <FormField
-            title="Last Name"
-            value={form.lastName}
-            handleChangeText={(e) => setForm({ ...form, lastName: e })}
-            otherStyles="mx-6"
-            placeholder="type last name ..."
-          />
-
-          <FormField
-            title="Username"
-            value={form.username}
-            handleChangeText={(e) => setForm({ ...form, username: e })}
-            otherStyles="mx-6"
-            placeholder="type username ..."
-          />
-
-          <FormField
-            title="Email"
-            value={form.email}
-            handleChangeText={(e) => setForm({ ...form, email: e })}
-            otherStyles="mx-6"
-            placeholder="type email ..."
-          />
-          <FormField
-            title="City"
-            value={form.city}
-            handleChangeText={(e) => setForm({ ...form, city: e })}
-            otherStyles="mx-6"
-            placeholder="type city ..."
-          />
-
-          <FormField
-            title="Password"
-            value={form.password}
-            handleChangeText={(e) => setForm({ ...form, password: e })}
-            otherStyles="mx-6"
-            placeholder="type password ..."
-          />
+          {[
+            {
+              title: "First Name",
+              field: "firstName",
+              placeholder: "type first name ...",
+            },
+            {
+              title: "Last Name",
+              field: "lastName",
+              placeholder: "type last name ...",
+            },
+            {
+              title: "Username",
+              field: "username",
+              placeholder: "type username ...",
+            },
+            { title: "Email", field: "email", placeholder: "type email ..." },
+            { title: "City", field: "city", placeholder: "type city ..." },
+            {
+              title: "Password",
+              field: "password",
+              placeholder: "type password ...",
+            },
+          ].map(({ title, field, placeholder }) => (
+            <View key={field}>
+              <FormField
+                title={title}
+                value={form[field]}
+                handleChangeText={(e) => handleChangeText(field, e)}
+                otherStyles="mx-6"
+                placeholder={placeholder}
+              />
+              {errors[field] && (
+                <Text className="mx-6 text-red-600 text-sm">
+                  {errors[field]}
+                </Text>
+              )}
+            </View>
+          ))}
           <CustomButton
             title="Sign Up"
             handlePress={submit}

@@ -9,6 +9,8 @@ const CreateLayout = () => {
       <Stack>
         <Stack.Screen name="my-groups" options={{ headerShown: false }} />
         <Stack.Screen name="create-group" options={{ headerShown: false }} />
+        <Stack.Screen name="group-page" options={{ headerShown: false }} />
+        <Stack.Screen name="create-session" options={{ headerShown: false }} />
       </Stack>
       <StatusBar />
     </>
