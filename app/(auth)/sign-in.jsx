@@ -40,6 +40,7 @@ const SignIn = () => {
           await AsyncStorage.setItem("token", token);
           const loggedUser = response.data.username;
           await AsyncStorage.setItem("loggedUser", loggedUser);
+          await AsyncStorage.setItem("loggedUserId", response.data.userId);
           Alert.alert("Success", response.message);
           router.replace("/home-page");
         } else {

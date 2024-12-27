@@ -1,5 +1,5 @@
 import { View, Text, SafeAreaView, ScrollView, Alert } from "react-native";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import FormField from "../../../components/FormField";
 import CustomButton from "../../../components/CustomButton";
 import { router, useLocalSearchParams } from "expo-router";
@@ -21,43 +21,83 @@ const CreateSession = () => {
     acceptedBy: [],
   });
 
-  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
-  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
   const [selecting, setSelecting] = useState("startDate");
-  const [errorMessage, setErrorMessage] = useState("");
+  const [validationErrors, setValidationErrors] = useState({});
+
+  useEffect(() => {
+    validateForm();
+  }, [form]);
+
+  const validateField = (field, value) => {
+    let error = "";
+
+    const now = new Date();
+
+    if (field === "name" && !value) error = "Session name is required.";
+    if (field === "startDate" && !value) error = "Start date is required.";
+    if (field === "endDate" && !value) error = "End date is required.";
+    if (field === "startTime" && !value) error = "Start time is required.";
+    if (field === "endTime" && !value) error = "End time is required.";
+
+    if (
+      field === "endDate" &&
+      value &&
+      form.startDate &&
+      value < form.startDate
+    ) {
+      error = "End date cannot be before the start date.";
+    }
+
+    if (
+      field === "endTime" &&
+      value &&
+      form.startTime &&
+      value <= form.startTime &&
+      form.startDate === form.endDate
+    ) {
+      error = "End time must be after start time for the same day.";
+    }
+
+    if (
+      field === "startTime" &&
+      form.startDate &&
+      value &&
+      new Date(`${form.startDate}T${value}`) <= now
+    ) {
+      error = "Start time must be after the current date and time.";
+    }
+
+    setValidationErrors((prevErrors) => ({
+      ...prevErrors,
+      [field]: error,
+    }));
+  };
+
+  const validateForm = () => {
+    Object.entries(form).forEach(([key, value]) => validateField(key, value));
+  };
 
   const handleDateSelect = (day) => {
-    setForm((prevForm) => ({ ...prevForm, [selecting]: day.dateString }));
-    setErrorMessage("");
+    const field = selecting;
+    const value = day.dateString;
+    setForm((prevForm) => ({ ...prevForm, [field]: value }));
+    validateField(field, value);
   };
 
   const handleTimeConfirm = (field, selectedTime) => {
-    setForm({
-      ...form,
-      [field]: selectedTime.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
+    const value = selectedTime.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
     });
-    setShowStartTimePicker(false);
-    setShowEndTimePicker(false);
-    setErrorMessage("");
+    setForm((prevForm) => ({ ...prevForm, [field]: value }));
+    validateField(field, value);
   };
 
-  const validateSessionTimes = () => {
-    if (!form.startDate || !form.endDate || !form.startTime || !form.endTime) {
-      return false;
-    }
-
-    const startDateTime = new Date(`${form.startDate}T${form.startTime}:00`);
-    const endDateTime = new Date(`${form.endDate}T${form.endTime}:00`);
-
-    if (startDateTime >= endDateTime) {
-      setErrorMessage("Start time cannot be after or equal to end time.");
-      return false;
-    }
-
-    return true;
+  const isFormValid = () => {
+    return (
+      Object.values(validationErrors).every((error) => !error) &&
+      Object.values(form).every((value) => value)
+    );
   };
 
   const getLoggedUser = async () => {
@@ -74,18 +114,8 @@ const CreateSession = () => {
   };
 
   const submit = async () => {
-    if (
-      !form.name ||
-      !form.startDate ||
-      !form.endDate ||
-      !form.startTime ||
-      !form.endTime
-    ) {
-      Alert.alert("Error", "Please fill in all the fields.");
-      return;
-    }
-
-    if (!validateSessionTimes()) {
+    if (!isFormValid()) {
+      Alert.alert("Error", "Please fix all errors before submitting.");
       return;
     }
 
@@ -108,22 +138,40 @@ const CreateSession = () => {
     };
 
     try {
-      await axios
-        .post("http://172.20.10.5:8000/createSession", session)
-        .then((response) => {})
-        .catch((error) => {
-          Alert.alert("Error", error.message);
-          console.log("group session error:", error);
+      const response = await axios.post(
+        "http://172.20.10.5:8000/createSession",
+        session
+      );
+
+      if (response.data.success) {
+        Alert.alert("Success", response.data.message);
+
+        setForm({
+          name: "",
+          startDate: null,
+          endDate: null,
+          startTime: null,
+          endTime: null,
+          acceptedBy: [],
         });
+      } else {
+        Alert.alert("Error", response.data.message);
+      }
     } catch (error) {
-      console.log(error.message);
+      console.log(response);
+      Alert.alert("Error", "The session overlaps with an existing session.");
+      console.error("Error creating session:", error.message);
     } finally {
-      setIsSubmiting(false);
+      setIsSubmitting(false);
     }
   };
 
   const cancel = () => {
     router.replace(`/group-page?groupId=${groupId}`);
+  };
+
+  const goToCalendar = () => {
+    router.push("/home-page");
   };
 
   return (
@@ -139,6 +187,11 @@ const CreateSession = () => {
           handleChangeText={(text) => setForm({ ...form, name: text })}
           placeholder="Enter session name"
         />
+        {validationErrors.name && (
+          <Text className="mx-6 text-red-600 text-sm">
+            {validationErrors.name}
+          </Text>
+        )}
 
         <View style={{ marginVertical: 16 }}>
           <Text style={{ fontSize: 16 }}>
@@ -154,6 +207,18 @@ const CreateSession = () => {
             }}
             onDayPress={handleDateSelect}
           />
+          <View className="flex-row">
+            {validationErrors.startDate && (
+              <Text className="mx-6 text-red-600 text-sm">
+                {validationErrors.startDate}
+              </Text>
+            )}
+            {validationErrors.endDate && (
+              <Text className="mx-6 text-red-600 text-sm">
+                {validationErrors.endDate}
+              </Text>
+            )}
+          </View>
           <View
             style={{
               flexDirection: "row",
@@ -208,23 +273,38 @@ const CreateSession = () => {
             />
           </View>
         </View>
+        <View className="flex-row">
+          {validationErrors.startTime && (
+            <Text className="mx-6 text-red-600 text-sm">
+              {validationErrors.startTime}
+            </Text>
+          )}
+          {validationErrors.endTime && (
+            <Text className="mx-6 text-red-600 text-sm">
+              {validationErrors.endTime}
+            </Text>
+          )}
+        </View>
 
-        {errorMessage && (
-          <Text style={{ color: "red", marginTop: 8 }}>{errorMessage}</Text>
-        )}
-
-        <View className="flex-row items-center mx-14 mb-4">
+        <View className="flex-row items-center mx-4 mb-4">
           <CustomButton
             title="Create"
             handlePress={submit}
-            containerStyles="m-6 w-50"
+            containerStyles="m-3 w-50"
             textStyles="text-white px-2 p-2"
           />
 
           <CustomButton
             title="Back to group"
             handlePress={cancel}
-            containerStyles="m-6 w-30"
+            containerStyles="m-3 w-30"
+            textStyles="text-white px-2 p-2"
+          />
+
+          <CustomButton
+            title="Go to Calendar"
+            handlePress={goToCalendar}
+            containerStyles="m-3 w-30"
             textStyles="text-white px-2 p-2"
           />
         </View>
