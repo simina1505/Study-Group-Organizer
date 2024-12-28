@@ -1,13 +1,23 @@
 import { useLocalSearchParams, router } from "expo-router";
-import { SafeAreaView, Text, View, Alert, TextInput } from "react-native";
-import { useState, useEffect } from "react";
+import {
+  SafeAreaView,
+  Text,
+  View,
+  Alert,
+  TextInput,
+  TouchableOpacity,
+  Image,
+} from "react-native";
+import React, { useState, useEffect, useCallback } from "react";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import CustomButton from "../../../components/CustomButton";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GiftedChat } from "react-native-gifted-chat";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { v4 as uuidv4 } from "uuid";
+import { useFocusEffect } from "@react-navigation/native";
 
 const GroupPage = () => {
   const { groupId } = useLocalSearchParams();
@@ -16,11 +26,14 @@ const GroupPage = () => {
   const [file, setFile] = useState("");
   const [messages, setMessages] = useState([]);
   const [loggedUserId, setLoggedUser] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
 
-  useEffect(() => {
-    fetchMessagesAndFiles();
-    getLoggedUser();
-  }, [groupId]);
+  useFocusEffect(
+    React.useCallback(() => {
+      getLoggedUser();
+      fetchMessagesAndFiles();
+    }, [groupId])
+  );
 
   const openCreateGroupForm = () => {
     router.push(`/create-session?groupId=${groupId}`);
@@ -45,17 +58,20 @@ const GroupPage = () => {
       );
       // console.log("Response Data:", response.data);
       if (response.data.success) {
-        const messages = response.data.messages.map((msg) => ({
+        console.log(response.data.messages);
+        const allMessages = response.data.messages.map((msg) => ({
           _id: msg._id,
-          text: msg.content,
+          text: msg.content || msg.text,
           createdAt: new Date(msg.timestamp),
           user: {
-            _id: msg.senderId,
-            name: msg.senderId == loggedUserId ? "You" : "none", // Assuming the sender's name is provided
+            _id: msg.senderId || msg.user._id,
           },
-          file: msg.fileName || null,
+          file: msg.file ? msg.file : null,
         }));
-        setMessages(messages.reverse());
+
+        setMessages(allMessages.reverse());
+        //console.log("hei");
+        //console.log(messages);
       }
     } catch (error) {
       console.error("Error fetching messages:", error);
@@ -63,134 +79,278 @@ const GroupPage = () => {
     }
   };
 
-  const onSend = async (messagesArray = []) => {
-    const message = messagesArray[0];
-    const newMessage = {
-      _id: uuidv4(),
-      text: message.text,
-      createdAt: new Date(),
-      user: { _id: loggedUserId, name: "You" },
-    };
-    const success = await sendMessageToBackend(message.text);
-    if (success) {
-      setMessages((previousMessages) =>
-        GiftedChat.append(previousMessages, [newMessage])
-      );
-      setMessage("");
-    }
-  };
+  const onSend = useCallback(
+    async (messagesArray = []) => {
+      const message = messagesArray[0];
+      try {
+        if (message.file) {
+          // Handle file message
+          const formData = new FormData();
+          formData.append("file", {
+            uri: message.file.uri,
+            name: message.file.name,
+            type: message.file.type,
+          });
+          formData.append("senderId", loggedUserId);
+          formData.append("groupId", groupId);
 
-  const sendMessageToBackend = async (messageText) => {
-    try {
-      const response = await axios.post("http://172.20.10.5:8000/sendMessage", {
-        senderId: loggedUserId,
-        groupId,
-        content: messageText,
-      });
-      return response.data.success;
-    } catch (error) {
-      console.error("Error sending message:", error);
-      Alert.alert("Error", "There was an error sending your message.");
-      return false;
-    }
-  };
+          const response = await axios.post(
+            "http://172.20.10.5:8000/sendFile",
+            formData,
+            {
+              headers: { "Content-Type": "multipart/form-data" },
+            }
+          );
 
-  const pickFile = async () => {
+          // Assuming backend returns file URL or fileId
+          if (response.data.success) {
+            // Add the fileUrl or other metadata to the message
+            const fileMessage = {
+              _id: uuidv4(),
+              text: `File: ${message.file.name}`,
+              createdAt: new Date(),
+              user: { _id: loggedUserId },
+              file: { url: response.data.fileUrl, name: message.file.name },
+            };
+            setMessages((prevMessages) =>
+              GiftedChat.append(prevMessages, [fileMessage])
+            );
+          }
+        } else {
+          // Handle text message
+          await axios.post("http://172.20.10.5:8000/sendMessage", {
+            senderId: loggedUserId,
+            groupId,
+            content: message.text,
+          });
+
+          setMessages((prevMessages) =>
+            GiftedChat.append(prevMessages, messagesArray)
+          );
+        }
+      } catch (error) {
+        console.error("Error sending message:", error);
+      }
+    },
+    [groupId, loggedUserId]
+  );
+
+  const handleFileSelect = async () => {
     try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: "*/*",
-        copyToCacheDirectory: true,
-      });
-      if (result) {
-        setFile(result.assets[0].uri);
-        const messageContent = {
-          _id: uuidv4(),
-          text: `File: ${result.assets[0].name}`,
+      // Open the document picker
+      const result = await DocumentPicker.getDocumentAsync({ type: "*/*" });
+
+      // Check if the user canceled the document picker
+      if (!result.canceled) {
+        // Log the full result for debugging
+        //
+        //  console.log("Document picker result:", result);
+
+        // Access the first file asset in the result
+        const file = result.assets[0]; // Get the first file in the assets array
+
+        // Check if the file object is properly populated
+        if (!file) {
+          console.error("No file selected");
+          return;
+        }
+
+        // Extract file details from the file object
+        const { uri, name, mimeType } = file;
+
+        // If the file object is missing properties, log them
+        if (!uri || !name || !mimeType) {
+          console.error("Missing file properties: ", { uri, name, mimeType });
+          return;
+        }
+
+        // Create a message object with the selected file details
+        const fileMessage = {
+          _id: uuidv4(), // Generate a unique ID
+          text: `File: ${name}`, // Display the file name in the message
           createdAt: new Date(),
-          user: { _id: loggedUserId, name: "You" },
-          file: result,
+          user: { _id: loggedUserId },
+          file: { uri, name, mimeType }, // Store the file details
         };
-        setMessage("");
-        setMessages((previousMessages) =>
-          GiftedChat.append(previousMessages, [messageContent])
+
+        // Log the fileMessage for debugging
+        // console.log("File message:", fileMessage);
+
+        // Optionally set the selected file in the state
+        setSelectedFile(fileMessage);
+
+        // Send the file message
+        onSend([fileMessage]);
+      } else {
+        console.log("File picker was canceled.");
+      }
+    } catch (error) {
+      console.error("Error selecting file:", error);
+    }
+  };
+
+  const selectAndUploadPhoto = async () => {
+    // Request permissions
+    try {
+      const permissionResult =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissionResult.granted) {
+        alert("Permission to access media library is required!");
+        return;
+      }
+
+      // Open the image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaType,
+        quality: 1, // High-quality image
+      });
+
+      if (!result.canceled) {
+        // Log the full result for debugging
+        //
+        //  console.log("Document picker result:", result);
+
+        // Access the first file asset in the result
+        const photo = result.assets[0]; // Get the first file in the assets array
+
+        // Check if the file object is properly populated
+        if (!photo) {
+          console.error("No photo selected");
+          return;
+        }
+
+        // Extract file details from the file object
+        const { uri, mimeType } = photo;
+        const name = `Photo - ${Date.now()}.png`;
+
+        // If the file object is missing properties, log them
+        if (!uri || !mimeType) {
+          console.error("Missing photo properties: ", { uri, name, mimeType });
+          return;
+        }
+
+        // Create a message object with the selected file details
+        const photoMessage = {
+          _id: uuidv4(), // Generate a unique ID
+          text: name, // Display the file name in the message
+          createdAt: new Date(),
+          user: { _id: loggedUserId },
+          file: { uri, name, mimeType }, // Store the file details
+        };
+
+        // Log the fileMessage for debugging
+        // console.log("File message:", fileMessage);
+
+        // Optionally set the selected file in the state
+        setSelectedFile(photoMessage);
+
+        // Send the file message
+        onSend([photoMessage]);
+      } else {
+        console.log("File picker was canceled.");
+      }
+    } catch (error) {
+      console.error("Error selecting file:", error);
+    }
+  };
+  const downloadFile = (fileName) => {
+    // console.log(fileName);
+    // console.log("hei");
+    // axios
+    //   .get(`http://172.20.10.5:8000/getFileMetadata/${fileName}`)
+    //   .then((response) => {
+    //     console.log(response);
+    //     if (response.data.success) {
+    //       const fileId = response.data.fileId; // Extract fileId from the response
+    //       //console.log(fileId);
+    //       // Step 2: Download the file using the fileId
+    //       axios({
+    //         url: `http://172.20.10.5:8000/downloadById/${fileId}`, // Request the file by ID
+    //         method: "GET",
+    //         responseType: "blob", // Ensure the response is treated as a Blob (file)
+    //       })
+    //         .then((response) => {
+    //           const url = URL.createObjectURL(new Blob([response.data]));
+    //           const link = document.createElement("a");
+    //           link.href = url;
+    //           link.setAttribute("download", response.data.fileName); // Optionally use the filename from response
+    //           document.body.appendChild(link);
+    //           link.click(); // Trigger download
+    //           Alert.alert("Success", "File downloaded successfully!");
+    //         })
+    //         .catch((error) => {
+    //           console.error("Error downloading file:", error);
+    //         });
+    //     }
+    //   })
+    //   .catch((error) => {
+    //     console.error("Error retrieving file metadata:", error);
+    //   });
+  };
+  // Render custom actions for file upload
+  const renderActions = () => (
+    <View className="flex-row">
+      <View>
+        <TouchableOpacity onPress={handleFileSelect} style={{ margin: 10 }}>
+          <Text style={{ color: "blue" }}>
+            <FontAwesome size={25} name="paperclip" />
+          </Text>
+        </TouchableOpacity>
+      </View>
+      <View>
+        <TouchableOpacity onPress={selectAndUploadPhoto} style={{ margin: 10 }}>
+          <Text style={{ color: "blue" }}>
+            <FontAwesome size={25} name="photo" />
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  // Render message bubbles
+  const renderMessageText = (props) => {
+    const { currentMessage } = props;
+    console.log(currentMessage);
+    if (currentMessage.file && currentMessage.file.name) {
+      const url = currentMessage.file.name; // Convert to lowercase for case-insensitive matching
+      console.log("intra?");
+      const isImage =
+        url.includes(".png") ||
+        url.includes(".jpeg") ||
+        url.includes(".jpg") ||
+        url.includes(".gif");
+
+      if (isImage) {
+        return (
+          <Image
+            source={{
+              uri: `http://172.20.10.5:8000/getImage/${currentMessage.file.name}`,
+            }}
+            style={{ width: 200, height: 200 }}
+          />
+        );
+      } else {
+        return (
+          <TouchableOpacity
+            key={currentMessage.id}
+            onPress={() => {
+              downloadFile(currentMessage.file.name);
+            }}>
+            <Text className="px-2 py-1 text-white underline">
+              {currentMessage.file.name}
+            </Text>
+          </TouchableOpacity>
         );
       }
-    } catch (error) {
-      console.error("Error picking file:", error);
-      Alert.alert("Error", "There was an error picking the file.");
     }
+
+    return <Text className="px-2 py-1 text-white">{currentMessage.text}</Text>;
   };
-
-  //SEND MESSAGE
-  const uploadFileAndSendMessage = async () => {
-    if (!loggedUserId) {
-      Alert.alert("Error", "User not logged in.");
-      return;
-    }
-    if (!file) {
-      Alert.alert("No file selected", "Please select a file before uploading.");
-      return;
-    }
-    const formData = new FormData();
-    formData.append("file", {
-      uri: file,
-      name: file.split("/").pop(),
-      type: "application/octet-stream",
-    });
-
-    formData.append("senderId", loggedUserId);
-    formData.append("groupId", groupId);
-    formData.append("content", message || "File message");
-
-    try {
-      const response = await axios.post(
-        "http://172.20.10.5:8000/uploadFile",
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
-      );
-
-      if (response.data.success) {
-        const uploadedMessage = {
-          _id: uuidv4(),
-          text: `File: ${response.data.message.content}`,
-          createdAt: new Date(),
-          user: { _id: loggedUserId, name: "You" },
-          file: response.data.file, // Attach the file info here
-        };
-
-        setMessages((prevMessages) => [...prevMessages, uploadedMessage]);
-        setFile(null);
-        setMessage("");
-      }
-    } catch (error) {
-      console.error("Error uploading file and sending message:", error);
-      Alert.alert("Upload failed", "There was an error uploading the file.");
-    }
-  };
-
-  const renderMessage = (props) => {
-    const { currentMessage } = props;
-    //console.log(currentMessage);
-    if (currentMessage.File) {
-      return (
-        <View style={{ margin: 10 }}>
-          <Text style={{ color: "blue" }}>
-            File: {currentMessage.text || "Unnamed file"}
-          </Text>
-        </View>
-      );
-    } else {
-      return (
-        <View style={{ margin: 10 }}>
-          <Text>{currentMessage.text}</Text>
-        </View>
-      );
-    }
-  };
-
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <Text>Group ID: {groupId}</Text>
+    <View style={{ flex: 1, marginTop: 40 }}>
+      <Text style={{ textAlign: "center", fontSize: 16, marginVertical: 10 }}>
+        Group ID: {groupId}
+      </Text>
       <View style={{ alignItems: "center", marginBottom: 20 }}>
         <CustomButton
           title="Create Session"
@@ -200,81 +360,15 @@ const GroupPage = () => {
         />
       </View>
 
+      {/* GiftedChat */}
       <GiftedChat
         messages={messages}
-        onSend={(messages) => {
-          onSend(messages); // Reset message input after send
-        }}
+        onSend={(newMessages) => onSend(newMessages)}
         user={{ _id: loggedUserId }}
-        renderInputToolbar={(props) => (
-          <View
-            className="flex-row"
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              padding: 10,
-              borderTopWidth: 1,
-              borderColor: "#ccc",
-            }}>
-            <TextInput
-              value={message}
-              onChangeText={setMessage}
-              placeholder=" Enter message"
-              style={{
-                height: 40,
-                borderColor: "gray",
-                borderWidth: 1,
-                marginBottom: 10,
-                margin: 2,
-                borderRadius: 10,
-                borderWidth: 1,
-                paddingHorizontal: 10,
-                width: 200,
-              }}
-            />
-            <CustomButton
-              title="Send"
-              handlePress={() =>
-                onSend([
-                  {
-                    _id: uuidv4(),
-                    text: message,
-                    createdAt: new Date(),
-                    user: { _id: loggedUserId, name: "You" },
-                  },
-                ])
-              }
-              textStyles="text-white px-2 p-2"
-            />
-            <CustomButton
-              title="Pick file"
-              handlePress={pickFile}
-              textStyles="text-white px-2 p-2"
-            />
-            {/* File Preview Section */}
-            {file && (
-              <View
-                style={{
-                  padding: 10,
-                  marginBottom: 10,
-                  backgroundColor: "#f8f8f8",
-                  borderRadius: 10,
-                  borderWidth: 1,
-                  borderColor: "#ccc",
-                }}>
-                <Text style={{ fontSize: 16 }}>Selected File:</Text>
-                <Text>{file.name}</Text>
-                <CustomButton
-                  title="Send File"
-                  handlePress={uploadFileAndSendMessage}
-                  textStyles="text-white px-2 p-2"
-                />
-              </View>
-            )}
-          </View>
-        )}
+        renderActions={renderActions}
+        renderMessageText={renderMessageText}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 
