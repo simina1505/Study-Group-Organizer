@@ -7,6 +7,7 @@ import {
   TextInput,
   TouchableOpacity,
   Image,
+  Modal,
 } from "react-native";
 import React, { useState, useEffect, useCallback } from "react";
 import * as ImagePicker from "expo-image-picker";
@@ -18,6 +19,7 @@ import { GiftedChat } from "react-native-gifted-chat";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { v4 as uuidv4 } from "uuid";
 import { useFocusEffect } from "@react-navigation/native";
+import * as FileSystem from "expo-file-system";
 
 const GroupPage = () => {
   const { groupId } = useLocalSearchParams();
@@ -27,6 +29,8 @@ const GroupPage = () => {
   const [messages, setMessages] = useState([]);
   const [loggedUserId, setLoggedUser] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [imageModalVisible, setImageModalVisible] = useState(false); // State to control modal visibility
+  const [selectedImage, setSelectedImage] = useState(null);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -58,7 +62,7 @@ const GroupPage = () => {
       );
       // console.log("Response Data:", response.data);
       if (response.data.success) {
-        console.log(response.data.messages);
+        // console.log(response.data.messages);
         const allMessages = response.data.messages.map((msg) => ({
           _id: msg._id,
           text: msg.content || msg.text,
@@ -253,39 +257,60 @@ const GroupPage = () => {
       console.error("Error selecting file:", error);
     }
   };
-  const downloadFile = (fileName) => {
-    // console.log(fileName);
-    // console.log("hei");
-    // axios
-    //   .get(`http://172.20.10.5:8000/getFileMetadata/${fileName}`)
-    //   .then((response) => {
-    //     console.log(response);
-    //     if (response.data.success) {
-    //       const fileId = response.data.fileId; // Extract fileId from the response
-    //       //console.log(fileId);
-    //       // Step 2: Download the file using the fileId
-    //       axios({
-    //         url: `http://172.20.10.5:8000/downloadById/${fileId}`, // Request the file by ID
-    //         method: "GET",
-    //         responseType: "blob", // Ensure the response is treated as a Blob (file)
-    //       })
-    //         .then((response) => {
-    //           const url = URL.createObjectURL(new Blob([response.data]));
-    //           const link = document.createElement("a");
-    //           link.href = url;
-    //           link.setAttribute("download", response.data.fileName); // Optionally use the filename from response
-    //           document.body.appendChild(link);
-    //           link.click(); // Trigger download
-    //           Alert.alert("Success", "File downloaded successfully!");
-    //         })
-    //         .catch((error) => {
-    //           console.error("Error downloading file:", error);
-    //         });
-    //     }
-    //   })
-    //   .catch((error) => {
-    //     console.error("Error retrieving file metadata:", error);
-    //   });
+  const downloadFile = async (fileName) => {
+    try {
+      const metadataResponse = await axios.get(
+        `http://172.20.10.5:8000/getFileMetadata/${fileName}`
+      );
+
+      if (metadataResponse.data.success) {
+        const fileId = metadataResponse.data.fileId;
+        const fileNameFromMetadata = metadataResponse.data.fileName || fileName;
+        console.log(metadataResponse.data);
+        const downloadResponse = await axios.get(
+          `http://172.20.10.5:8000/downloadById/${fileId}`,
+          { responseType: "arraybuffer" }
+        );
+
+        // Convert the arraybuffer to Base64 encoding
+        const base64Data = arrayBufferToBase64(downloadResponse.data);
+
+        // Define the file path for saving the file
+        const fileUri = FileSystem.documentDirectory + fileNameFromMetadata;
+
+        // Save the file using Expo's FileSystem API
+        await FileSystem.writeAsStringAsync(fileUri, base64Data, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+
+        Alert.alert("Success", "File downloaded successfully!");
+      } else {
+        Alert.alert("Error", "Failed to fetch file metadata.");
+      }
+    } catch (error) {
+      console.error("Error downloading file:", error);
+      Alert.alert("Error", "Failed to download file.");
+    }
+  };
+  function arrayBufferToBase64(buffer) {
+    let binary = "";
+    const bytes = new Uint8Array(buffer);
+    const length = bytes.byteLength;
+    for (let i = 0; i < length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary); // Convert binary string to Base64
+  }
+
+  const openImageModal = (imageUrl) => {
+    setSelectedImage(imageUrl);
+    setImageModalVisible(true);
+  };
+
+  // Close the image modal
+  const closeImageModal = () => {
+    setImageModalVisible(false);
+    setSelectedImage(null);
   };
   // Render custom actions for file upload
   const renderActions = () => (
@@ -310,35 +335,33 @@ const GroupPage = () => {
   // Render message bubbles
   const renderMessageText = (props) => {
     const { currentMessage } = props;
-    console.log(currentMessage);
-    if (currentMessage.file && currentMessage.file.name) {
-      const url = currentMessage.file.name; // Convert to lowercase for case-insensitive matching
-      console.log("intra?");
+
+    if (currentMessage.file) {
+      const { name } = currentMessage.file;
       const isImage =
-        url.includes(".png") ||
-        url.includes(".jpeg") ||
-        url.includes(".jpg") ||
-        url.includes(".gif");
+        name.toLowerCase().endsWith(".png") ||
+        name.toLowerCase().endsWith(".jpeg") ||
+        name.toLowerCase().endsWith(".jpg") ||
+        name.toLowerCase().endsWith(".gif");
 
       if (isImage) {
         return (
-          <Image
-            source={{
-              uri: `http://172.20.10.5:8000/getImage/${currentMessage.file.name}`,
-            }}
-            style={{ width: 200, height: 200 }}
-          />
+          <TouchableOpacity
+            onPress={() =>
+              openImageModal(`http://172.20.10.5:8000/getImageByName/${name}`)
+            }>
+            <Image
+              source={{
+                uri: `http://172.20.10.5:8000/getImageByName/${name}`,
+              }}
+              style={{ width: 200, height: 200 }}
+            />
+          </TouchableOpacity>
         );
       } else {
         return (
-          <TouchableOpacity
-            key={currentMessage.id}
-            onPress={() => {
-              downloadFile(currentMessage.file.name);
-            }}>
-            <Text className="px-2 py-1 text-white underline">
-              {currentMessage.file.name}
-            </Text>
+          <TouchableOpacity onPress={() => downloadFile(name)}>
+            <Text className="px-2 py-1 text-white underline">{name}</Text>
           </TouchableOpacity>
         );
       }
@@ -368,6 +391,30 @@ const GroupPage = () => {
         renderActions={renderActions}
         renderMessageText={renderMessageText}
       />
+
+      <Modal
+        visible={imageModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={closeImageModal}>
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "rgba(0, 0, 0, 0.7)",
+          }}>
+          <TouchableOpacity
+            onPress={closeImageModal}
+            style={{ position: "absolute", top: 40, right: 20 }}>
+            <FontAwesome size={30} name="close" color="white" />
+          </TouchableOpacity>
+          <Image
+            source={{ uri: selectedImage }}
+            style={{ width: "90%", height: "80%", resizeMode: "contain" }}
+          />
+        </View>
+      </Modal>
     </View>
   );
 };
