@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Image,
   Modal,
+  FlatList,
 } from "react-native";
 import React, { useState, useEffect, useCallback } from "react";
 import * as ImagePicker from "expo-image-picker";
@@ -20,6 +21,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { v4 as uuidv4 } from "uuid";
 import { useFocusEffect } from "@react-navigation/native";
 import * as FileSystem from "expo-file-system";
+import QRCode from "react-native-qrcode-svg";
 
 const GroupPage = () => {
   const { groupId } = useLocalSearchParams();
@@ -27,15 +29,25 @@ const GroupPage = () => {
   const [message, setMessage] = useState("");
   const [file, setFile] = useState("");
   const [messages, setMessages] = useState([]);
-  const [loggedUserId, setLoggedUser] = useState(null);
+  const [loggedUserId, setLoggedUserId] = useState(null);
+  const [loggedUser, setLoggedUser] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [imageModalVisible, setImageModalVisible] = useState(false); // State to control modal visibility
   const [selectedImage, setSelectedImage] = useState(null);
+  const [requestsModalVisible, setModalVisible] = useState(false);
+  const [qrCodeModalVisible, setQRCodeModalVisible] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState(null);
+  const [qrCodeData, setQrCodeData] = useState(null);
 
   useFocusEffect(
     React.useCallback(() => {
-      getLoggedUser();
-      fetchMessagesAndFiles();
+      const fetchData = async () => {
+        await getLoggedUser();
+        await fetchGroupData();
+        await fetchMessagesAndFiles();
+      };
+
+      fetchData();
     }, [groupId])
   );
 
@@ -46,8 +58,12 @@ const GroupPage = () => {
   const getLoggedUser = async () => {
     try {
       const userId = await AsyncStorage.getItem("loggedUserId");
+      const username = await AsyncStorage.getItem("loggedUser");
       if (userId) {
-        setLoggedUser(userId);
+        setLoggedUserId(userId);
+      }
+      if (username) {
+        setLoggedUser(username);
       }
     } catch (error) {
       console.error("Error retrieving loggedUserId:", error);
@@ -55,14 +71,11 @@ const GroupPage = () => {
   };
 
   const fetchMessagesAndFiles = async () => {
-    //sf console.log(file);
     try {
       const response = await axios.get(
         `http://172.20.10.5:8000/fetchMessagesandFiles/${groupId}`
       );
-      // console.log("Response Data:", response.data);
       if (response.data.success) {
-        // console.log(response.data.messages);
         const allMessages = response.data.messages.map((msg) => ({
           _id: msg._id,
           text: msg.content || msg.text,
@@ -74,8 +87,6 @@ const GroupPage = () => {
         }));
 
         setMessages(allMessages.reverse());
-        //console.log("hei");
-        //console.log(messages);
       }
     } catch (error) {
       console.error("Error fetching messages:", error);
@@ -88,7 +99,6 @@ const GroupPage = () => {
       const message = messagesArray[0];
       try {
         if (message.file) {
-          // Handle file message
           const formData = new FormData();
           formData.append("file", {
             uri: message.file.uri,
@@ -106,7 +116,6 @@ const GroupPage = () => {
             }
           );
 
-          // Assuming backend returns file URL or fileId
           if (response.data.success) {
             // Add the fileUrl or other metadata to the message
             const fileMessage = {
@@ -193,8 +202,49 @@ const GroupPage = () => {
     }
   };
 
+  const handleAccept = async (username) => {
+    try {
+      const response = await axios.post(
+        "http://172.20.10.5:8000/acceptRequest",
+        { groupId, username }
+      );
+      if (response.data.success) {
+        const updatedRequests = selectedGroup.requests.filter(
+          (request) => request !== username
+        );
+        const updatedGroup = { ...selectedGroup, requests: updatedRequests };
+
+        setSelectedGroup(updatedGroup);
+        Alert.alert("Success", `${username} added to group!`);
+      }
+    } catch (error) {
+      console.error("Error fetching group:", error);
+      Alert.alert("Error", "Failed to fetch group.");
+    }
+  };
+
+  const handleDecline = async (username) => {
+    try {
+      const response = await axios.post(
+        "http://172.20.10.5:8000/declineRequest",
+        { groupId, username }
+      );
+      if (response.data.success) {
+        const updatedRequests = selectedGroup.requests.filter(
+          (request) => request !== username
+        );
+        const updatedGroup = { ...selectedGroup, requests: updatedRequests };
+
+        setSelectedGroup(updatedGroup);
+        Alert.alert("Success", `${username} removed from requests!`);
+      }
+    } catch (error) {
+      console.error("Error fetching group:", error);
+      Alert.alert("Error", "Failed to fetch group.");
+    }
+  };
+
   const selectAndUploadPhoto = async () => {
-    // Request permissions
     try {
       const permissionResult =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -203,52 +253,35 @@ const GroupPage = () => {
         return;
       }
 
-      // Open the image picker
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaType,
-        quality: 1, // High-quality image
+        quality: 1,
       });
 
       if (!result.canceled) {
-        // Log the full result for debugging
-        //
-        //  console.log("Document picker result:", result);
+        const photo = result.assets[0];
 
-        // Access the first file asset in the result
-        const photo = result.assets[0]; // Get the first file in the assets array
-
-        // Check if the file object is properly populated
         if (!photo) {
           console.error("No photo selected");
           return;
         }
 
-        // Extract file details from the file object
         const { uri, mimeType } = photo;
         const name = `Photo - ${Date.now()}.png`;
 
-        // If the file object is missing properties, log them
         if (!uri || !mimeType) {
           console.error("Missing photo properties: ", { uri, name, mimeType });
           return;
         }
 
-        // Create a message object with the selected file details
         const photoMessage = {
-          _id: uuidv4(), // Generate a unique ID
-          text: name, // Display the file name in the message
+          _id: uuidv4(),
+          text: name,
           createdAt: new Date(),
           user: { _id: loggedUserId },
-          file: { uri, name, mimeType }, // Store the file details
+          file: { uri, name, mimeType },
         };
-
-        // Log the fileMessage for debugging
-        // console.log("File message:", fileMessage);
-
-        // Optionally set the selected file in the state
         setSelectedFile(photoMessage);
-
-        // Send the file message
         onSend([photoMessage]);
       } else {
         console.log("File picker was canceled.");
@@ -257,6 +290,7 @@ const GroupPage = () => {
       console.error("Error selecting file:", error);
     }
   };
+
   const downloadFile = async (fileName) => {
     try {
       const metadataResponse = await axios.get(
@@ -266,19 +300,12 @@ const GroupPage = () => {
       if (metadataResponse.data.success) {
         const fileId = metadataResponse.data.fileId;
         const fileNameFromMetadata = metadataResponse.data.fileName || fileName;
-        console.log(metadataResponse.data);
         const downloadResponse = await axios.get(
           `http://172.20.10.5:8000/downloadById/${fileId}`,
           { responseType: "arraybuffer" }
         );
-
-        // Convert the arraybuffer to Base64 encoding
         const base64Data = arrayBufferToBase64(downloadResponse.data);
-
-        // Define the file path for saving the file
         const fileUri = FileSystem.documentDirectory + fileNameFromMetadata;
-
-        // Save the file using Expo's FileSystem API
         await FileSystem.writeAsStringAsync(fileUri, base64Data, {
           encoding: FileSystem.EncodingType.Base64,
         });
@@ -299,7 +326,7 @@ const GroupPage = () => {
     for (let i = 0; i < length; i++) {
       binary += String.fromCharCode(bytes[i]);
     }
-    return window.btoa(binary); // Convert binary string to Base64
+    return window.btoa(binary);
   }
 
   const openImageModal = (imageUrl) => {
@@ -307,12 +334,56 @@ const GroupPage = () => {
     setImageModalVisible(true);
   };
 
-  // Close the image modal
   const closeImageModal = () => {
     setImageModalVisible(false);
     setSelectedImage(null);
   };
-  // Render custom actions for file upload
+
+  const fetchGroupData = async () => {
+    try {
+      const response = await axios.get(
+        `http://172.20.10.5:8000/fetchGroup/${groupId}`
+      );
+      if (response.data.success) {
+        setSelectedGroup(response.data.group);
+      }
+    } catch (error) {
+      console.error("Error fetching group:", error);
+      Alert.alert("Error", "Failed to fetch group.");
+    }
+  };
+
+  const openRequestsModal = async () => {
+    if (selectedGroup) {
+      setModalVisible(true);
+    }
+  };
+
+  const generateQRCode = async () => {
+    try {
+      const username = loggedUser;
+      const response = await axios.post(
+        "http://172.20.10.5:8000/generateGroupQRCode",
+        {
+          groupId,
+          username,
+        }
+      );
+      setQrCodeData(response.data.qrCode);
+    } catch (error) {
+      console.error("Error generating QR code:", error);
+    }
+  };
+
+  const openQRCodeModal = async () => {
+    setQRCodeModalVisible(true);
+    await generateQRCode();
+  };
+
+  const closeQRCodeModal = () => {
+    setQRCodeModalVisible(false);
+  };
+
   const renderActions = () => (
     <View className="flex-row">
       <View>
@@ -323,16 +394,19 @@ const GroupPage = () => {
         </TouchableOpacity>
       </View>
       <View>
-        <TouchableOpacity onPress={selectAndUploadPhoto} style={{ margin: 10 }}>
-          <Text style={{ color: "blue" }}>
-            <FontAwesome size={25} name="photo" />
-          </Text>
-        </TouchableOpacity>
+        {
+          <TouchableOpacity
+            onPress={selectAndUploadPhoto}
+            style={{ margin: 10 }}>
+            <Text style={{ color: "blue" }}>
+              <FontAwesome size={25} name="photo" />
+            </Text>
+          </TouchableOpacity>
+        }
       </View>
     </View>
   );
 
-  // Render message bubbles
   const renderMessageText = (props) => {
     const { currentMessage } = props;
 
@@ -374,13 +448,33 @@ const GroupPage = () => {
       <Text style={{ textAlign: "center", fontSize: 16, marginVertical: 10 }}>
         Group ID: {groupId}
       </Text>
-      <View style={{ alignItems: "center", marginBottom: 20 }}>
+      <View
+        className="flex-row"
+        style={{ alignItems: "center", marginBottom: 20 }}>
         <CustomButton
           title="Create Session"
           handlePress={openCreateGroupForm}
           containerStyles="m-6"
           textStyles="text-white px-2 p-2"
         />
+        {selectedGroup?.creator === loggedUser && (
+          <View className="flex-row">
+            <CustomButton
+              title="Requests"
+              handlePress={openRequestsModal}
+              containerStyles="m-6"
+              textStyles="text-white px-2 p-2"
+            />
+            {selectedGroup.privacy === "Private" && (
+              <CustomButton
+                title="QR Code"
+                handlePress={openQRCodeModal}
+                containerStyles="m-6"
+                textStyles="text-white px-2 p-2"
+              />
+            )}
+          </View>
+        )}
       </View>
 
       {/* GiftedChat */}
@@ -413,6 +507,107 @@ const GroupPage = () => {
             source={{ uri: selectedImage }}
             style={{ width: "90%", height: "80%", resizeMode: "contain" }}
           />
+        </View>
+      </Modal>
+
+      <Modal visible={requestsModalVisible} animationType="slide" transparent>
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+          }}>
+          <View
+            style={{
+              backgroundColor: "white",
+              padding: 20,
+              borderRadius: 10,
+              width: "80%",
+              alignItems: "center",
+            }}>
+            {selectedGroup && selectedGroup.requests.length > 0 ? (
+              <FlatList
+                data={selectedGroup.requests}
+                keyExtractor={(item, index) => index.toString()}
+                renderItem={({ item }) => (
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      width: "100%",
+                      paddingVertical: 8,
+                    }}>
+                    <Text style={{ fontSize: 16, color: "#333" }}>{item}</Text>
+                    <View style={{ flexDirection: "row", gap: 10 }}>
+                      <TouchableOpacity
+                        onPress={() => handleAccept(item)}
+                        style={{
+                          backgroundColor: "green",
+                          paddingHorizontal: 10,
+                          paddingVertical: 5,
+                          borderRadius: 5,
+                        }}>
+                        <Text style={{ color: "white" }}>Accept</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => handleDecline(item)}
+                        style={{
+                          backgroundColor: "red",
+                          paddingHorizontal: 10,
+                          paddingVertical: 5,
+                          borderRadius: 5,
+                        }}>
+                        <Text style={{ color: "white" }}>Decline</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+                style={{ marginTop: 16, width: "100%" }}
+              />
+            ) : (
+              <Text style={{ marginTop: 16, color: "#333" }}>
+                No requests found
+              </Text>
+            )}
+
+            <View style={{ flexDirection: "row", marginTop: 20 }}>
+              <CustomButton
+                title="Close"
+                handlePress={() => setModalVisible(false)}
+                containerStyles="w-30"
+                textStyles="text-white px-2 p-2"
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={qrCodeModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={closeQRCodeModal}>
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "rgba(0, 0, 0, 0.7)",
+          }}>
+          <TouchableOpacity
+            onPress={closeQRCodeModal}
+            style={{ position: "absolute", top: 40, right: 20 }}>
+            <FontAwesome size={30} name="close" color="white" />
+          </TouchableOpacity>
+          <View>
+            {qrCodeData ? (
+              <QRCode value={qrCodeData} size={200} />
+            ) : (
+              <Text>Generating QR Code...</Text>
+            )}
+          </View>
         </View>
       </Modal>
     </View>

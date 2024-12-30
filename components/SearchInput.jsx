@@ -36,7 +36,6 @@ const SearchInput = ({ searchType, placeholder, onSearchResults }) => {
         const fetchResults = async () => {
           setLoading(true);
           try {
-            console.log("Making API call...");
             const response = await axios.get(
               `http://172.20.10.5:8000/search${searchType}`,
               {

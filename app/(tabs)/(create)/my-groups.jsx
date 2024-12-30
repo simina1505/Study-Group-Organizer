@@ -95,7 +95,11 @@ const MyGroups = () => {
         groupId,
         username: loggedUser,
       });
-      Alert.alert("Success", "You have joined the group.");
+      setSelectedGroup((prevGroup) => ({
+        ...prevGroup,
+        requests: [...(prevGroup.requests || []), loggedUser], // Add the logged user to the requests
+      }));
+      Alert.alert("Success", "You have requested to join the group.");
       setModalVisible(false);
     } catch (error) {
       Alert.alert("Error", "Unable to join the group.");
@@ -248,10 +252,20 @@ const MyGroups = () => {
                 <Text style={{ marginVertical: 10, color: "#555" }}>
                   {selectedGroup.description}
                 </Text>
+                {selectedGroup.requests?.includes(loggedUser) && (
+                  <Text
+                    style={{
+                      marginVertical: 10,
+                      color: "#555",
+                      paddingBottom: 2,
+                    }}>
+                    Waiting for approval
+                  </Text>
+                )}
                 <View className="flex-row justify-content-between">
-                  {selectedGroup.privacy === "Public" &&
-                    selectedGroup.creator != loggedUser &&
-                    !selectedGroup.members?.include(loggedUser)(
+                  {selectedGroup.creator != loggedUser &&
+                    !selectedGroup.members?.includes(loggedUser) &&
+                    !selectedGroup.requests?.includes(loggedUser) && (
                       <CustomButton
                         title="Join Group"
                         handlePress={() => handleJoinGroup(selectedGroup._id)}
