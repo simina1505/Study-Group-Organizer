@@ -9,7 +9,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 function QRScanner() {
   const [hasPermission, setHasPermission] = useState(null);
   const [scanned, setScanned] = useState(false);
-  const [showButton, setShowButton] = useState(true);
+  const [showButton, setShowButton] = useState(false);
   const [loggedUser, setLoggedUser] = useState(null);
 
   useEffect(() => {
@@ -23,7 +23,7 @@ function QRScanner() {
 
   const getLoggedUser = async () => {
     try {
-      const loggedUser = await AsyncStorage.getItem("loggedUser"); //username-ul
+      const loggedUser = await AsyncStorage.getItem("loggedUser");
       if (loggedUser) {
         setLoggedUser(loggedUser);
         return loggedUser;
@@ -35,40 +35,45 @@ function QRScanner() {
   };
 
   const handleBarcodeScanned = async ({ type, data }) => {
-    // Stop scanning after one scan
     if (scanned) return;
 
-    setScanned(true); // Prevent further scanning
-    setShowButton(false); // Hide the button after scanning
-
-    const token = data; // This is where you extract the token/groupId
+    setScanned(true);
+    setShowButton(false);
 
     try {
-      // Send request to your backend to join the group
-      const response = await fetch("http://172.20.10.5:8000/joinGroup", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ token, username: loggedUser }), // Send the token in the request body
-      });
+      const url = new URL(data);
+      console.log(url);
 
-      const result = await response.json();
-
-      if (result.success) {
-        Alert.alert("Success", "You have successfully joined the group!", [
-          {
-            text: "OK",
-            onPress: () => setShowButton(true),
+      const token = url.searchParams.get("token");
+      console.log;
+      if (token) {
+        const response = await fetch("http://172.20.10.5:8000/joinGroup", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
           },
-        ]);
+          body: JSON.stringify({ token, username: loggedUser }),
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          Alert.alert("Success", "You have successfully joined the group!", [
+            {
+              text: "OK",
+              onPress: () => setShowButton(true),
+            },
+          ]);
+        } else {
+          Alert.alert("Error", result.message || "Failed to join the group.", [
+            {
+              text: "OK",
+              onPress: () => setShowButton(true),
+            },
+          ]);
+        }
       } else {
-        Alert.alert("Error", result.message || "Failed to join the group.", [
-          {
-            text: "OK",
-            onPress: () => setShowButton(true),
-          },
-        ]);
+        Alert.alert("Error", "Token not found in the QR code.");
       }
     } catch (error) {
       Alert.alert(
@@ -84,7 +89,6 @@ function QRScanner() {
     }
   };
 
-  // If camera permission is still not granted or failed
   if (hasPermission === null) {
     return <Text>Requesting for camera permission</Text>;
   }
@@ -95,7 +99,7 @@ function QRScanner() {
   return (
     <View style={styles.container}>
       <CameraView
-        onBarcodeScanned={scanned ? undefined : handleBarcodeScanned} // Prevent scanning if already scanned
+        onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
         barcodeScannerSettings={{
           barcodeTypes: ["qr", "pdf417"],
         }}
@@ -114,10 +118,10 @@ function QRScanner() {
       {showButton && (
         <View style={styles.buttonContainer}>
           <CustomButton
-            title={"Tap to Scan the Code"}
+            title={"Tap to Scan the Code again"}
             handlePress={() => {
-              setScanned(false); // Reset scanning state when the user wants to scan again
-              setShowButton(false); // Hide the button after pressing
+              setScanned(false);
+              setShowButton(false);
             }}
             containerStyles="m-6 bg-white"
             textStyles=" px-2 p-2"

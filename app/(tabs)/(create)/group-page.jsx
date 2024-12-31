@@ -32,7 +32,7 @@ const GroupPage = () => {
   const [loggedUserId, setLoggedUserId] = useState(null);
   const [loggedUser, setLoggedUser] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
-  const [imageModalVisible, setImageModalVisible] = useState(false); // State to control modal visibility
+  const [imageModalVisible, setImageModalVisible] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [requestsModalVisible, setModalVisible] = useState(false);
   const [qrCodeModalVisible, setQRCodeModalVisible] = useState(false);
@@ -130,7 +130,6 @@ const GroupPage = () => {
             );
           }
         } else {
-          // Handle text message
           await axios.post("http://172.20.10.5:8000/sendMessage", {
             senderId: loggedUserId,
             groupId,
@@ -150,34 +149,23 @@ const GroupPage = () => {
 
   const handleFileSelect = async () => {
     try {
-      // Open the document picker
       const result = await DocumentPicker.getDocumentAsync({ type: "*/*" });
 
-      // Check if the user canceled the document picker
       if (!result.canceled) {
-        // Log the full result for debugging
-        //
-        //  console.log("Document picker result:", result);
+        const file = result.assets[0];
 
-        // Access the first file asset in the result
-        const file = result.assets[0]; // Get the first file in the assets array
-
-        // Check if the file object is properly populated
         if (!file) {
           console.error("No file selected");
           return;
         }
 
-        // Extract file details from the file object
         const { uri, name, mimeType } = file;
 
-        // If the file object is missing properties, log them
         if (!uri || !name || !mimeType) {
           console.error("Missing file properties: ", { uri, name, mimeType });
           return;
         }
 
-        // Create a message object with the selected file details
         const fileMessage = {
           _id: uuidv4(), // Generate a unique ID
           text: `File: ${name}`, // Display the file name in the message
@@ -185,14 +173,8 @@ const GroupPage = () => {
           user: { _id: loggedUserId },
           file: { uri, name, mimeType }, // Store the file details
         };
-
-        // Log the fileMessage for debugging
-        // console.log("File message:", fileMessage);
-
-        // Optionally set the selected file in the state
         setSelectedFile(fileMessage);
 
-        // Send the file message
         onSend([fileMessage]);
       } else {
         console.log("File picker was canceled.");
@@ -369,7 +351,12 @@ const GroupPage = () => {
           username,
         }
       );
-      setQrCodeData(response.data.qrCode);
+      if (response.data.success) {
+        console.log(response.data.qrCode);
+        setQrCodeData(response.data.qrCode); // This should be a base64-encoded QR code
+      } else {
+        console.error("Failed to generate QR code:", response.data.message);
+      }
     } catch (error) {
       console.error("Error generating QR code:", error);
     }
@@ -603,7 +590,10 @@ const GroupPage = () => {
           </TouchableOpacity>
           <View>
             {qrCodeData ? (
-              <QRCode value={qrCodeData} size={200} />
+              <Image
+                source={{ uri: qrCodeData }}
+                style={{ width: 200, height: 200 }}
+              />
             ) : (
               <Text>Generating QR Code...</Text>
             )}
