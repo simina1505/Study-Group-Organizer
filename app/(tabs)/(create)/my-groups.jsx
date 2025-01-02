@@ -40,7 +40,7 @@ const MyGroups = () => {
     }
   };
 
-  const fetchOwnedGroups = async () => {
+  const fetchGroups = async () => {
     try {
       const loggedUser = await getLoggedUser();
       await axios
@@ -68,7 +68,7 @@ const MyGroups = () => {
   };
 
   useEffect(() => {
-    fetchOwnedGroups();
+    fetchGroups();
   }, []);
 
   const openCreateGroupForm = () => {
@@ -105,6 +105,35 @@ const MyGroups = () => {
       Alert.alert("Error", "Unable to join the group.");
       console.error("Error joining group:", error);
     }
+  };
+
+  const handleDeleteGroup = async (groupId) => {
+    try {
+      await axios.delete(`http://172.20.10.5:8000/deleteGroup/${groupId}`);
+      Alert.alert("Success", "Group deleted successfully.");
+      fetchGroups();
+    } catch (error) {
+      console.error("Error deleting group:", error);
+      Alert.alert("Error", "Failed to delete group.");
+    }
+  };
+
+  const handleLeaveGroup = async (groupId) => {
+    try {
+      await axios.post(`http://172.20.10.5:8000/leaveGroup`, {
+        groupId,
+        username: loggedUser,
+      });
+      Alert.alert("Success", "You have left the group.");
+      fetchGroups();
+    } catch (error) {
+      console.error("Error leaving group:", error);
+      Alert.alert("Error", "Failed to leave the group.");
+    }
+  };
+
+  const handleEditGroup = (groupId) => {
+    router.push(`/edit-group?groupId=${groupId}`);
   };
 
   return (
@@ -173,6 +202,16 @@ const MyGroups = () => {
                       </View>
                     </View>
                     <Text className="text-gray-500">{group.description}</Text>
+                    <View className="flex-row">
+                      <TouchableOpacity
+                        onPress={() => handleDeleteGroup(group._id)}>
+                        <FontAwesome name="trash" size={24} color="black" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => handleEditGroup(group._id)}>
+                        <FontAwesome name="pencil" size={24} color="black" />
+                      </TouchableOpacity>
+                    </View>
                   </TouchableOpacity>
                 </View>
               ))}
@@ -181,37 +220,43 @@ const MyGroups = () => {
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {memberGroups.length > 0 &&
               memberGroups.map((group) => (
-                <View
-                  className="flex-row"
-                  style={{
-                    marginHorizontal: 8,
-                    backgroundColor: "black",
-                    borderRadius: 12,
-                    padding: 2,
-                    height: 150,
-                  }}
-                  key={group._id}>
-                  <TouchableOpacity
+                <View>
+                  <View
+                    className="flex-row"
                     style={{
-                      width: 200,
-                      padding: 10,
-                      backgroundColor: "#f0f0f0",
-                      borderRadius: 8,
+                      marginHorizontal: 8,
+                      backgroundColor: "black",
+                      borderRadius: 12,
+                      padding: 2,
+                      height: 150,
                     }}
-                    onPress={() => handleGroupPress(group._id)}>
-                    <View className="flex-row pb-6">
-                      <Text className="text-xl font-bold mr-2">
-                        {group.name}
-                      </Text>
-                      <View className="pt-1">
-                        {group.privacy === "Private" ? (
-                          <FontAwesome size={20} name="lock" />
-                        ) : (
-                          <FontAwesome size={20} name="unlock" />
-                        )}
+                    key={group._id}>
+                    <TouchableOpacity
+                      style={{
+                        width: 200,
+                        padding: 10,
+                        backgroundColor: "#f0f0f0",
+                        borderRadius: 8,
+                      }}
+                      onPress={() => handleGroupPress(group._id)}>
+                      <View className="flex-row pb-6">
+                        <Text className="text-xl font-bold mr-2">
+                          {group.name}
+                        </Text>
+                        <View className="pt-1">
+                          {group.privacy === "Private" ? (
+                            <FontAwesome size={20} name="lock" />
+                          ) : (
+                            <FontAwesome size={20} name="unlock" />
+                          )}
+                        </View>
                       </View>
-                    </View>
-                  </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => handleLeaveGroup(group._id)}>
+                        <FontAwesome name="sign-out" size={24} color="black" />
+                      </TouchableOpacity>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ))}
           </ScrollView>

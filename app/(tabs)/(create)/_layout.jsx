@@ -11,6 +11,8 @@ const CreateLayout = () => {
         <Stack.Screen name="create-group" options={{ headerShown: false }} />
         <Stack.Screen name="group-page" options={{ headerShown: false }} />
         <Stack.Screen name="create-session" options={{ headerShown: false }} />
+        <Stack.Screen name="edit-group" options={{ headerShown: false }} />
+        <Stack.Screen name="edit-session" options={{ headerShown: false }} />
       </Stack>
       <StatusBar />
     </>

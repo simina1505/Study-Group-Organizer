@@ -6,17 +6,15 @@ import {
   Alert,
   Switch,
 } from "react-native";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import FormField from "../../../components/FormField";
-import { useState } from "react";
 import CustomButton from "../../../components/CustomButton";
-import { router } from "expo-router";
+import { useLocalSearchParams, router } from "expo-router";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MultipleSelectList } from "react-native-dropdown-select-list";
-const createGroup = () => {
-  // const { setUser, setIsLogged } = useGlobalContext();
 
+const EditGroup = () => {
   const subjectsList = [
     { key: "1", value: "Math" },
     { key: "2", value: "Science" },
@@ -24,7 +22,9 @@ const createGroup = () => {
     { key: "4", value: "Art" },
     { key: "5", value: "Computer Science" },
   ];
-  const [subjects, setSelected] = useState([]);
+  const { groupId } = useLocalSearchParams();
+  const [subjects, setSubjects] = useState([]);
+  const [selected, setSelected] = useState([]);
   const [isSubmiting, setIsSubmiting] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -34,15 +34,49 @@ const createGroup = () => {
   });
   const [errors, setErrors] = useState({});
 
+  useEffect(() => {
+    if (groupId) {
+      getGroupData();
+    }
+  }, [groupId]);
+
   const getLoggedUser = async () => {
     try {
-      const loggedUser = await AsyncStorage.getItem("loggedUser"); //username-ul
+      const loggedUser = await AsyncStorage.getItem("loggedUser");
       if (loggedUser) {
         return loggedUser;
       }
       return null;
     } catch (error) {
       console.error("Error retrieving loggedUser:", error);
+    }
+  };
+
+  const getGroupData = async () => {
+    try {
+      const response = await axios.get(
+        `http://172.20.10.5:8000/fetchGroup/${groupId}`
+      );
+      if (response.data.success) {
+        const groupData = response.data.group;
+        console.log(groupData);
+        setForm({
+          name: groupData.name,
+          description: groupData.description,
+          privacy: groupData.privacy,
+          city: groupData.city,
+        });
+        console.log(form);
+        setSubjects(groupData.subject);
+        const selectedSubjects = groupData.subject.map((subject) => {
+          return subjectsList.find((item) => item.value === subject);
+        });
+        // Set subjects as key-based values for selected
+        setSelected(selectedSubjects);
+        console.log(selected);
+      }
+    } catch (error) {
+      console.error("Error fetching group data:", error);
     }
   };
 
@@ -81,20 +115,6 @@ const createGroup = () => {
   };
 
   const submit = async () => {
-    if (!form.name) {
-      Alert.alert("Error", "Please enter group name");
-    }
-    if (!form.description) {
-      Alert.alert("Error", "Please enter description");
-    }
-
-    if (!form.city) {
-      Alert.alert("Error", "Please pick a city");
-    }
-    if (subjects.length == 0) {
-      Alert.alert("Error", "Please pick a least one subject");
-    }
-
     const loggedUser = await getLoggedUser();
     if (!loggedUser) {
       Alert.alert("Error", "User not logged in");
@@ -103,6 +123,8 @@ const createGroup = () => {
     }
 
     setIsSubmiting(true);
+    console.log("aici");
+    console.log(subjects);
     const group = {
       name: form.name,
       description: form.description,
@@ -111,11 +133,13 @@ const createGroup = () => {
       creator: loggedUser,
       city: form.city,
     };
+
     try {
       await axios
-        .post("http://172.20.10.5:8000/createGroup", group)
+        .put(`http://172.20.10.5:8000/editGroup/${groupId}`, group)
         .then((response) => {
           if (response && response.data.success === true) {
+            Alert.alert("Success", "Group updated successfully");
             router.replace("/my-groups");
           } else {
             Alert.alert("Error", "Please fix all the fields.");
@@ -123,7 +147,7 @@ const createGroup = () => {
         })
         .catch((error) => {
           Alert.alert("Error", error.message);
-          console.log("group creation error:", error);
+          console.log("group edit error:", error);
         });
     } catch (error) {
       console.log(error.message);
@@ -137,10 +161,11 @@ const createGroup = () => {
   };
 
   return (
-    <SafeAreaView className=" h-full">
+    <SafeAreaView className="h-full">
       <ScrollView>
-        <View className="w-full justify-center px-4 my-6 ">
-          <Text className="mx-6 mb-6 text-xl">Create Group </Text>
+        <View className="w-full justify-center px-4 my-6">
+          <Text className="mx-6 mb-6 text-xl">Edit Group</Text>
+
           <FormField
             title="Group Name"
             value={form.name}
@@ -191,7 +216,7 @@ const createGroup = () => {
 
           <View className="flex-row items-center mx-14 mb-4">
             <CustomButton
-              title="Create"
+              title="Save Changes"
               handlePress={submit}
               containerStyles="m-6"
               isLoading={isSubmiting}
@@ -211,4 +236,4 @@ const createGroup = () => {
   );
 };
 
-export default createGroup;
+export default EditGroup;

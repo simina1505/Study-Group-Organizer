@@ -35,8 +35,10 @@ const GroupPage = () => {
   const [imageModalVisible, setImageModalVisible] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [requestsModalVisible, setModalVisible] = useState(false);
+  const [sessionsModalVisible, setSessionsModalVisible] = useState(false);
   const [qrCodeModalVisible, setQRCodeModalVisible] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState(null);
+  const [sessions, setSessions] = useState(null);
   const [qrCodeData, setQrCodeData] = useState(null);
 
   useFocusEffect(
@@ -44,6 +46,7 @@ const GroupPage = () => {
       const fetchData = async () => {
         await getLoggedUser();
         await fetchGroupData();
+        await fetchSessions();
         await fetchMessagesAndFiles();
       };
 
@@ -335,9 +338,29 @@ const GroupPage = () => {
     }
   };
 
+  const fetchSessions = async () => {
+    try {
+      const response = await axios.get(
+        `http://172.20.10.5:8000/fetchSessions/${groupId}`
+      );
+      if (response.data.success) {
+        setSessions(response.data.sessions);
+      }
+    } catch (error) {
+      console.error("Error fetching sessions:", error);
+      Alert.alert("Error", "Failed to fetch sessions.");
+    }
+  };
+
   const openRequestsModal = async () => {
     if (selectedGroup) {
       setModalVisible(true);
+    }
+  };
+
+  const openSessionsModal = async () => {
+    if (sessions) {
+      setSessionsModalVisible(true);
     }
   };
 
@@ -352,7 +375,6 @@ const GroupPage = () => {
         }
       );
       if (response.data.success) {
-        console.log(response.data.qrCode);
         setQrCodeData(response.data.qrCode); // This should be a base64-encoded QR code
       } else {
         console.error("Failed to generate QR code:", response.data.message);
@@ -369,6 +391,23 @@ const GroupPage = () => {
 
   const closeQRCodeModal = () => {
     setQRCodeModalVisible(false);
+  };
+
+  const handleDeleteSession = async (sessionId) => {
+    try {
+      await axios.delete(`http://172.20.10.5:8000/deleteSession/${sessionId}`);
+      Alert.alert("Success", "Session deleted successfully.");
+      fetchSessions();
+    } catch (error) {
+      console.error("Error deleting session:", error);
+      Alert.alert("Error", "Failed to delete session.");
+    }
+  };
+
+  const handleEditSession = (sessionId) => {
+    console.log(sessionId);
+    setSessionsModalVisible(false);
+    router.push(`/edit-session?sessionId=${sessionId}`);
   };
 
   const renderActions = () => (
@@ -446,12 +485,14 @@ const GroupPage = () => {
         />
         {selectedGroup?.creator === loggedUser && (
           <View className="flex-row">
-            <CustomButton
-              title="Requests"
-              handlePress={openRequestsModal}
-              containerStyles="m-6"
-              textStyles="text-white px-2 p-2"
-            />
+            {selectedGroup.privacy === "Public" && (
+              <CustomButton
+                title="Requests"
+                handlePress={openRequestsModal}
+                containerStyles="m-6"
+                textStyles="text-white px-2 p-2"
+              />
+            )}
             {selectedGroup.privacy === "Private" && (
               <CustomButton
                 title="QR Code"
@@ -460,10 +501,15 @@ const GroupPage = () => {
                 textStyles="text-white px-2 p-2"
               />
             )}
+            <CustomButton
+              title="Sessions"
+              handlePress={openSessionsModal}
+              containerStyles="m-6"
+              textStyles="text-white px-2 p-2"
+            />
           </View>
         )}
       </View>
-
       {/* GiftedChat */}
       <GiftedChat
         messages={messages}
@@ -472,7 +518,6 @@ const GroupPage = () => {
         renderActions={renderActions}
         renderMessageText={renderMessageText}
       />
-
       <Modal
         visible={imageModalVisible}
         transparent={true}
@@ -496,7 +541,6 @@ const GroupPage = () => {
           />
         </View>
       </Modal>
-
       <Modal visible={requestsModalVisible} animationType="slide" transparent>
         <View
           style={{
@@ -570,7 +614,6 @@ const GroupPage = () => {
           </View>
         </View>
       </Modal>
-
       <Modal
         visible={qrCodeModalVisible}
         transparent={true}
@@ -597,6 +640,45 @@ const GroupPage = () => {
             ) : (
               <Text>Generating QR Code...</Text>
             )}
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        visible={sessionsModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setSessionsModalVisible(false)}>
+        <View className="flex-1 justify-center items-center bg-black bg-opacity-50">
+          <View className="bg-white w-80 p-4 rounded">
+            <Text className="text-xl font-semibold mb-4">Sessions</Text>
+
+            {/* FlatList for displaying sessions */}
+            <FlatList
+              data={sessions}
+              keyExtractor={(item) => item._id}
+              renderItem={({ item }) => (
+                <View className="flex-row justify-between items-center mb-4">
+                  <Text>{item.name}</Text>
+                  <View className="flex-row space-x-2">
+                    <TouchableOpacity
+                      onPress={() => handleEditSession(item._id)}>
+                      <FontAwesome name="pencil" size={24} color="black" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleDeleteSession(item._id)}>
+                      <FontAwesome name="trash" size={24} color="red" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+            />
+
+            <CustomButton
+              title="Close"
+              handlePress={() => setSessionsModalVisible(false)}
+              containerStyles="m-6"
+              textStyles="text-white px-2 p-2"
+            />
           </View>
         </View>
       </Modal>

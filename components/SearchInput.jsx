@@ -5,14 +5,39 @@ import {
   FlatList,
   TextInput,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import axios from "axios";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as Location from "expo-location";
 
 const SearchInput = ({ searchType, placeholder, onSearchResults }) => {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  //const [location, setLocation] = useState(null);
+
+  // const fetchLocation = async () => {
+  //   try {
+  //     const { status } = await Location.requestForegroundPermissionsAsync();
+  //     if (status !== "granted") {
+  //       Alert.alert(
+  //         "Permission Denied",
+  //         "We need location access to provide better results."
+  //       );
+  //       return;
+  //     }
+  //     const loc = await Location.getCurrentPositionAsync({});
+  //     setLocation(loc.coords);
+  //     console.log(location);
+  //   } catch (error) {
+  //     console.error("Error fetching location:", error);
+  //   }
+  // };
+
+  // useEffect(() => {
+  //   fetchLocation();
+  // }, []);
 
   const handleSearchResults = useCallback(
     (data) => {
@@ -36,10 +61,15 @@ const SearchInput = ({ searchType, placeholder, onSearchResults }) => {
         const fetchResults = async () => {
           setLoading(true);
           try {
+            //console.log(location);
             const response = await axios.get(
               `http://172.20.10.5:8000/search${searchType}`,
               {
-                params: { query },
+                params: {
+                  query,
+                  // lat: location?.latitude, // Send latitude
+                  // lng: location?.longitude, // Send longitude
+                },
               }
             );
             const data = response.data.groups || [];
@@ -63,6 +93,7 @@ const SearchInput = ({ searchType, placeholder, onSearchResults }) => {
     setQuery(text);
     setIsTyping(true);
   };
+
   return (
     <View className="flex px-4 pt-2">
       <TextInput
