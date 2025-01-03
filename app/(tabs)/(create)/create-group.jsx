@@ -6,7 +6,7 @@ import {
   Alert,
   Switch,
 } from "react-native";
-import React from "react";
+import React, { useEffect } from "react";
 import FormField from "../../../components/FormField";
 import { useState } from "react";
 import CustomButton from "../../../components/CustomButton";
@@ -15,15 +15,7 @@ import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MultipleSelectList } from "react-native-dropdown-select-list";
 const createGroup = () => {
-  // const { setUser, setIsLogged } = useGlobalContext();
-
-  const subjectsList = [
-    { key: "1", value: "Math" },
-    { key: "2", value: "Science" },
-    { key: "3", value: "History" },
-    { key: "4", value: "Art" },
-    { key: "5", value: "Computer Science" },
-  ];
+  const [subjectsList, setSubjectsList] = useState([]);
   const [subjects, setSelected] = useState([]);
   const [isSubmiting, setIsSubmiting] = useState(false);
   const [form, setForm] = useState({
@@ -43,6 +35,22 @@ const createGroup = () => {
       return null;
     } catch (error) {
       console.error("Error retrieving loggedUser:", error);
+    }
+  };
+
+  useEffect(() => {
+    getSubjectsFromDB();
+  }, []);
+
+  const getSubjectsFromDB = async () => {
+    try {
+      const response = await axios.get("http://172.20.10.5:8000/getSubjects");
+      if (response.data.success) {
+        setSubjectsList(response.data.subjects);
+      }
+    } catch (error) {
+      console.error("Error fetching subjects", error);
+      return "Error fetching subjects.";
     }
   };
 
@@ -140,7 +148,11 @@ const createGroup = () => {
     <SafeAreaView className=" h-full">
       <ScrollView>
         <View className="w-full justify-center px-4 my-6 ">
-          <Text className="mx-6 mb-6 text-xl">Create Group </Text>
+          <Text
+            className="mx-6 mb-6"
+            style={{ fontSize: 30, fontWeight: "bold" }}>
+            Create Group{" "}
+          </Text>
           <FormField
             title="Group Name"
             value={form.name}
@@ -162,7 +174,7 @@ const createGroup = () => {
             placeholder="type a description"
           />
 
-          <View className="mx-6 mb-4">
+          <View className="mx-6 mt-4 mb-4">
             <MultipleSelectList
               setSelected={(val) => setSelected(val)}
               data={subjectsList}
@@ -189,7 +201,7 @@ const createGroup = () => {
             placeholder="pick a city"
           />
 
-          <View className="flex-row items-center mx-14 mb-4">
+          <View className="flex-row items-center mx-14 pl-6 mb-4">
             <CustomButton
               title="Create"
               handlePress={submit}

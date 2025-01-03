@@ -8,9 +8,9 @@ import {
   FlatList,
   Modal,
 } from "react-native";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import CustomButton from "../../../components/CustomButton";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
@@ -67,6 +67,11 @@ const MyGroups = () => {
     }
   };
 
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchGroups();
+    }, [])
+  );
   useEffect(() => {
     fetchGroups();
   }, []);
@@ -148,7 +153,7 @@ const MyGroups = () => {
 
       {searchResults.length > 0 ? (
         <FlatList
-          className="mx-6 mb-6 h-10"
+          className="mx-6 mb-6 h-5"
           data={searchResults}
           keyExtractor={(item) => item._id || item.id}
           renderItem={({ item }) => (
@@ -162,12 +167,20 @@ const MyGroups = () => {
         />
       ) : (
         searchResults.length === 0 && (
-          <Text className="mt-6 ml-6 mb-6">No groups found</Text>
+          <Text
+            className="mt-6 ml-6 mb-6"
+            style={{ color: "#b3b3b3", fontWeight: "bold" }}>
+            No groups found
+          </Text>
         )
       )}
       <ScrollView>
         <View className="w-full justify-center">
-          <Text className="mx-6 mb-6 text-xl">My Groups </Text>
+          <Text
+            className="mx-3 mb-6"
+            style={{ fontSize: 25, fontWeight: "bold" }}>
+            My Groups
+          </Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {ownedGroups.length > 0 &&
               ownedGroups.map((group) => (
@@ -202,25 +215,30 @@ const MyGroups = () => {
                       </View>
                     </View>
                     <Text className="text-gray-500">{group.description}</Text>
-                    <View className="flex-row">
+                    <View className="flex-row pt-6 ml-14 pl-14">
                       <TouchableOpacity
-                        onPress={() => handleDeleteGroup(group._id)}>
-                        <FontAwesome name="trash" size={24} color="black" />
+                        style={{ paddingRight: 10 }}
+                        onPress={() => handleEditGroup(group._id)}>
+                        <FontAwesome name="pencil" size={24} color="#504357" />
                       </TouchableOpacity>
                       <TouchableOpacity
-                        onPress={() => handleEditGroup(group._id)}>
-                        <FontAwesome name="pencil" size={24} color="black" />
+                        onPress={() => handleDeleteGroup(group._id)}>
+                        <FontAwesome name="trash" size={24} color="#504357" />
                       </TouchableOpacity>
                     </View>
                   </TouchableOpacity>
                 </View>
               ))}
           </ScrollView>
-          <Text className="mx-6 my-6 mb-6 text-xl">Member of</Text>
+          <Text
+            className="mx-3 mt-3 mb-6"
+            style={{ fontSize: 25, fontWeight: "bold" }}>
+            Member of
+          </Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {memberGroups.length > 0 &&
               memberGroups.map((group) => (
-                <View>
+                <View key={group._id}>
                   <View
                     className="flex-row"
                     style={{
@@ -229,8 +247,7 @@ const MyGroups = () => {
                       borderRadius: 12,
                       padding: 2,
                       height: 150,
-                    }}
-                    key={group._id}>
+                    }}>
                     <TouchableOpacity
                       style={{
                         width: 200,
@@ -251,10 +268,20 @@ const MyGroups = () => {
                           )}
                         </View>
                       </View>
-                      <TouchableOpacity
-                        onPress={() => handleLeaveGroup(group._id)}>
-                        <FontAwesome name="sign-out" size={24} color="black" />
-                      </TouchableOpacity>
+
+                      <Text className="text-gray-500">{group.description}</Text>
+                      <View className="pt-6 ml-14 pl-14">
+                        <TouchableOpacity
+                          style={{ paddingLeft: 35 }}
+                          keyExtractor={(item) => item._id || item.id}
+                          onPress={() => handleLeaveGroup(group._id)}>
+                          <FontAwesome
+                            name="sign-out"
+                            size={24}
+                            color="#504357"
+                          />
+                        </TouchableOpacity>
+                      </View>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -265,7 +292,6 @@ const MyGroups = () => {
               title="Create Group"
               handlePress={openCreateGroupForm}
               containerStyles="m-6 w-40"
-              isLoading={isLoading}
               textStyles="text-white px-2 p-2"
             />
           </View>
@@ -284,7 +310,7 @@ const MyGroups = () => {
           <View
             style={{
               backgroundColor: "white",
-              padding: 20,
+              padding: 10,
               borderRadius: 10,
               width: "80%",
               alignItems: "center",
@@ -294,8 +320,54 @@ const MyGroups = () => {
                 <Text style={{ fontSize: 18, fontWeight: "bold" }}>
                   {selectedGroup.name}
                 </Text>
-                <Text style={{ marginVertical: 10, color: "#555" }}>
+                <Text
+                  style={{
+                    marginVertical: 10,
+                    fontWeight: "bold",
+                    color: "#555",
+                  }}>
                   {selectedGroup.description}
+                </Text>
+                <View key={selectedGroup._id}>
+                  {selectedGroup.subject?.length > 0 && (
+                    <View
+                      key={selectedGroup._id}
+                      style={{
+                        flexDirection: "row",
+                        flexWrap: "wrap",
+                        paddingLeft: 50,
+                      }}>
+                      <Text
+                        style={{
+                          fontSize: 16,
+                          paddingTop: 3,
+                          fontWeight: "bold",
+                          color: "black",
+                        }}>
+                        Subjects:{"  "}
+                      </Text>
+                      {selectedGroup.subject.map((subject, index) => (
+                        <Text
+                          key={index}
+                          style={{
+                            color: "#555",
+                            fontWeight: "bold",
+                            marginVertical: 5,
+                          }}>
+                          {subject}
+                          {", "}
+                        </Text>
+                      ))}
+                    </View>
+                  )}
+                </View>
+                <Text
+                  style={{
+                    marginVertical: 10,
+                    fontWeight: "bold",
+                    color: "#555",
+                  }}>
+                  {selectedGroup.city}
                 </Text>
                 {selectedGroup.requests?.includes(loggedUser) && (
                   <Text
@@ -303,6 +375,7 @@ const MyGroups = () => {
                       marginVertical: 10,
                       color: "#555",
                       paddingBottom: 2,
+                      fontWeight: "bold",
                     }}>
                     Waiting for approval
                   </Text>

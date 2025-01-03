@@ -36,6 +36,7 @@ const GroupPage = () => {
   const [selectedImage, setSelectedImage] = useState(null);
   const [requestsModalVisible, setModalVisible] = useState(false);
   const [sessionsModalVisible, setSessionsModalVisible] = useState(false);
+  const [membersModalVisible, setMembersModalVisible] = useState(false);
   const [qrCodeModalVisible, setQRCodeModalVisible] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [sessions, setSessions] = useState(null);
@@ -95,6 +96,17 @@ const GroupPage = () => {
       console.error("Error fetching messages:", error);
       Alert.alert("Error", "Failed to load messages.");
     }
+  };
+
+  const formatForCalendar = (isoDate) => {
+    const date = new Date(isoDate);
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1; // Months are 0-indexed
+    const day = date.getDate();
+    return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(
+      2,
+      "0"
+    )}`;
   };
 
   const onSend = useCallback(
@@ -364,6 +376,12 @@ const GroupPage = () => {
     }
   };
 
+  const openMembersModal = async () => {
+    if (selectedGroup?.members) {
+      setMembersModalVisible(true);
+    }
+  };
+
   const generateQRCode = async () => {
     try {
       const username = loggedUser;
@@ -398,6 +416,7 @@ const GroupPage = () => {
       await axios.delete(`http://172.20.10.5:8000/deleteSession/${sessionId}`);
       Alert.alert("Success", "Session deleted successfully.");
       fetchSessions();
+      fetchGroupData();
     } catch (error) {
       console.error("Error deleting session:", error);
       Alert.alert("Error", "Failed to delete session.");
@@ -405,16 +424,30 @@ const GroupPage = () => {
   };
 
   const handleEditSession = (sessionId) => {
-    console.log(sessionId);
     setSessionsModalVisible(false);
     router.push(`/edit-session?sessionId=${sessionId}`);
+  };
+
+  const fetchUsername = async (userId) => {
+    try {
+      const response = await axios.get(
+        `http://172.20.10.5:8000/getUsernameById/${userId}`
+      );
+      if (response.data.success) {
+        return response.data.username;
+      } else {
+        console.error("Error fetching username:", response.data.message);
+      }
+    } catch (error) {
+      console.error("Error fetching username:", error);
+    }
   };
 
   const renderActions = () => (
     <View className="flex-row">
       <View>
         <TouchableOpacity onPress={handleFileSelect} style={{ margin: 10 }}>
-          <Text style={{ color: "blue" }}>
+          <Text style={{ color: "#504357" }}>
             <FontAwesome size={25} name="paperclip" />
           </Text>
         </TouchableOpacity>
@@ -424,7 +457,7 @@ const GroupPage = () => {
           <TouchableOpacity
             onPress={selectAndUploadPhoto}
             style={{ margin: 10 }}>
-            <Text style={{ color: "blue" }}>
+            <Text style={{ color: "#504357" }}>
               <FontAwesome size={25} name="photo" />
             </Text>
           </TouchableOpacity>
@@ -436,6 +469,26 @@ const GroupPage = () => {
   const renderMessageText = (props) => {
     const { currentMessage } = props;
 
+    const isMyMessage = currentMessage.user._id === loggedUserId;
+
+    const username = fetchUsername(currentMessage.user._id);
+
+    // Define styles for sent and received messages
+    const messageStyle = {
+      color: "white",
+      backgroundColor: isMyMessage ? "" : "#7f6b89", // Sent messages in blue, others in light gray
+      padding: 10,
+      borderRadius: 8,
+    };
+
+    const userStyle = {
+      fontWeight: "bold",
+      fontSize: 14,
+      marginBottom: 5,
+      paddingLeft: 5,
+      color: "gray",
+    };
+
     if (currentMessage.file) {
       const { name } = currentMessage.file;
       const isImage =
@@ -446,41 +499,67 @@ const GroupPage = () => {
 
       if (isImage) {
         return (
-          <TouchableOpacity
-            onPress={() =>
-              openImageModal(`http://172.20.10.5:8000/getImageByName/${name}`)
-            }>
-            <Image
-              source={{
-                uri: `http://172.20.10.5:8000/getImageByName/${name}`,
-              }}
-              style={{ width: 200, height: 200 }}
-            />
-          </TouchableOpacity>
+          <View>
+            {!isMyMessage && <Text style={userStyle}>{username}</Text>}
+            <TouchableOpacity
+              onPress={() =>
+                openImageModal(`http://172.20.10.5:8000/getImageByName/${name}`)
+              }>
+              <Image
+                source={{
+                  uri: `http://172.20.10.5:8000/getImageByName/${name}`,
+                }}
+                style={{ width: 200, height: 200 }}
+              />
+            </TouchableOpacity>
+          </View>
         );
       } else {
         return (
-          <TouchableOpacity onPress={() => downloadFile(name)}>
-            <Text className="px-2 py-1 text-white underline">{name}</Text>
-          </TouchableOpacity>
+          <View>
+            {!isMyMessage && <Text style={userStyle}>{username}</Text>}
+            <TouchableOpacity onPress={() => downloadFile(name)}>
+              <Text className="px-2 py-1 text-white underline">{name}</Text>
+            </TouchableOpacity>
+          </View>
         );
       }
     }
 
-    return <Text className="px-2 py-1 text-white">{currentMessage.text}</Text>;
+    return (
+      <View>
+        {!isMyMessage && <Text style={userStyle}>{username}</Text>}
+        <Text style={messageStyle}>{currentMessage.text}</Text>
+      </View>
+    );
   };
   return (
     <View style={{ flex: 1, marginTop: 40 }}>
-      <Text style={{ textAlign: "center", fontSize: 16, marginVertical: 10 }}>
-        Group ID: {groupId}
+      <Text
+        style={{
+          textAlign: "center",
+          marginVertical: 10,
+          fontSize: 20,
+          fontWeight: "bold",
+        }}>
+        {selectedGroup?.name}
       </Text>
       <View
         className="flex-row"
-        style={{ alignItems: "center", marginBottom: 20 }}>
+        style={{
+          alignItems: "center",
+          marginBottom: 20,
+        }}>
         <CustomButton
           title="Create Session"
           handlePress={openCreateGroupForm}
-          containerStyles="m-6"
+          containerStyles="m-2"
+          textStyles="text-white px-2 p-2"
+        />
+        <CustomButton
+          title="Members"
+          handlePress={openMembersModal}
+          containerStyles="m-2"
           textStyles="text-white px-2 p-2"
         />
         {selectedGroup?.creator === loggedUser && (
@@ -489,7 +568,7 @@ const GroupPage = () => {
               <CustomButton
                 title="Requests"
                 handlePress={openRequestsModal}
-                containerStyles="m-6"
+                containerStyles="m-2"
                 textStyles="text-white px-2 p-2"
               />
             )}
@@ -497,14 +576,14 @@ const GroupPage = () => {
               <CustomButton
                 title="QR Code"
                 handlePress={openQRCodeModal}
-                containerStyles="m-6"
+                containerStyles="m-2"
                 textStyles="text-white px-2 p-2"
               />
             )}
             <CustomButton
               title="Sessions"
               handlePress={openSessionsModal}
-              containerStyles="m-6"
+              containerStyles="m-2"
               textStyles="text-white px-2 p-2"
             />
           </View>
@@ -658,7 +737,12 @@ const GroupPage = () => {
               keyExtractor={(item) => item._id}
               renderItem={({ item }) => (
                 <View className="flex-row justify-between items-center mb-4">
-                  <Text>{item.name}</Text>
+                  <Text style={{ fontWeight: "bold" }}> {item.name}</Text>
+                  <Text>
+                    {"from: "} {formatForCalendar(item.startDate)}{" "}
+                    {item.startTime}
+                  </Text>
+
                   <View className="flex-row space-x-2">
                     <TouchableOpacity
                       onPress={() => handleEditSession(item._id)}>
@@ -676,6 +760,36 @@ const GroupPage = () => {
             <CustomButton
               title="Close"
               handlePress={() => setSessionsModalVisible(false)}
+              containerStyles="m-6"
+              textStyles="text-white px-2 p-2"
+            />
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={membersModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setMembersModalVisible(false)}>
+        <View className="flex-1 justify-center items-center bg-black bg-opacity-50">
+          <View className="bg-white w-80 p-4 rounded">
+            <Text className="text-xl font-semibold mb-4">Members</Text>
+
+            {/* FlatList for displaying sessions */}
+            <FlatList
+              data={selectedGroup?.members}
+              keyExtractor={(item, index) => index.toString()}
+              renderItem={({ item }) => (
+                <View className="flex-row justify-between items-center mb-4">
+                  <Text style={{ fontWeight: "bold" }}> {item}</Text>
+                </View>
+              )}
+            />
+
+            <CustomButton
+              title="Close"
+              handlePress={() => setMembersModalVisible(false)}
               containerStyles="m-6"
               textStyles="text-white px-2 p-2"
             />

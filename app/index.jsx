@@ -1,33 +1,58 @@
 import { StatusBar } from "expo-status-bar";
 import { ScrollView, Text, View } from "react-native";
-import { Redirect, router } from "expo-router";
+import { Redirect, router, useFocusEffect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import CustomButton from "../components/CustomButton";
-import { useState } from "react";
-//my screen
+import React, { useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 export default function App() {
-  // const { isLoading, isLogged } = useGlobalContext();
+  const [loggedUser, setLoggedUser] = useState("");
+  useFocusEffect(
+    React.useCallback(() => {
+      getLoggedUser();
+    }, [])
+  );
 
-  // if (!isLoading && isLogged) return <Redirect href="/home-page" />;
+  const getLoggedUser = async () => {
+    try {
+      const loggedUser = await AsyncStorage.getItem("loggedUser"); //username-ul
+      if (loggedUser) {
+        console.log(loggedUser);
+        setLoggedUser(loggedUser);
+      }
+      return null;
+    } catch (error) {
+      console.error("Error retrieving loggedUser:", error);
+    }
+  };
+
   return (
-    // <View className="flex-1 items-center justify-center bg-white">
-    // 	<Text className="text-3xl font-pblack">Study Group Organizer!</Text>
-    // 	<StatusBar style="auto" />
-    // 	<Link href="(home)/home-page" style={{ color: "blue" }}>
-    // 		Go to home
-    // 	</Link>
-    // </View>
-
     <SafeAreaView>
       <ScrollView
         contentContainerStyle={{
           height: "100%",
         }}>
         <View className="flex-1 items-center justify-center ">
-          <Text className=" text-xl ">Study Time Planner</Text>
+          <Text style={{ fontSize: 40, fontWeight: "bold" }}>
+            Study Time Planner
+          </Text>
+          <Text
+            style={{
+              fontSize: 24,
+              fontWeight: "bold",
+              color: "#555",
+              marginBottom: 30,
+            }}>
+            Find you study buddies
+          </Text>
           <CustomButton
-            title="Click here to start"
-            handlePress={() => router.push("/sign-in")}
+            title="Click here to enter"
+            handlePress={() =>
+              loggedUser != ""
+                ? router.push("/home-page")
+                : router.push("/sign-in")
+            }
             textStyles="text-white px-2 p-2"></CustomButton>
         </View>
       </ScrollView>

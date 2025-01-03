@@ -6,11 +6,14 @@ import {
   Alert,
   SafeAreaView,
   ScrollView,
+  TouchableOpacity,
 } from "react-native";
 import { Calendar } from "react-native-calendars";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { router } from "expo-router";
 
 const HomePage = () => {
   const [sessions, setSessions] = useState([]);
@@ -23,7 +26,6 @@ const HomePage = () => {
   useEffect(() => {
     const initialize = async () => {
       await getLoggedUser();
-      setSelectedDay(getCurrentDate());
     };
 
     initialize();
@@ -114,7 +116,7 @@ const HomePage = () => {
             marked[dateString] = {
               selected: true,
               marked: true,
-              selectedColor: "purple",
+              selectedColor: "#7f6b89",
               dotColor: "white",
               textColor: "white",
               sessions: [],
@@ -158,17 +160,27 @@ const HomePage = () => {
   };
 
   const getColorFromName = (name) => {
-    // Simple hash function to generate a number based on the session name
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
       hash = name.charCodeAt(i) + ((hash << 5) - hash);
     }
 
-    // Generate a color from the hash value
-    const hue = Math.abs(hash % 360);
-    const saturation = 50 + (Math.abs(hash) % 50);
-    const lightness = 50 + (Math.abs(hash) % 20);
+    const hue = 90 + Math.abs(hash % 60);
+    const saturation = 40 + (Math.abs(hash) % 20);
+    const lightness = 70 + (Math.abs(hash) % 20);
     return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+  };
+
+  const handleLogout = async () => {
+    try {
+      await AsyncStorage.removeItem("loggedUser");
+      await AsyncStorage.removeItem("loggedUserId");
+      await AsyncStorage.removeItem("token");
+      router.push("sign-in");
+    } catch (error) {
+      console.error("Error during logout:", error);
+      Alert.alert("Error", "An error occurred while logging out.");
+    }
   };
 
   const renderTimeline = () => {
@@ -226,6 +238,18 @@ const HomePage = () => {
         <Text style={{ fontSize: 18, fontWeight: "bold", marginBottom: 16 }}>
           Your Sessions Calendar
         </Text>
+        <TouchableOpacity
+          onPress={handleLogout}
+          style={{ position: "absolute", top: 10, right: 20 }}>
+          <View className="flex-row">
+            <Text className="pt-2 pr-1" style={{ fontWeight: "bold" }}>
+              {" "}
+              Log out{" "}
+            </Text>
+            <FontAwesome size={30} name="sign-out" color="#7f6b89" />
+          </View>
+        </TouchableOpacity>
+
         <Calendar
           markedDates={markedDates}
           theme={{

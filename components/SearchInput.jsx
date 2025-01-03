@@ -10,34 +10,13 @@ import {
 import axios from "axios";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Location from "expo-location";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const SearchInput = ({ searchType, placeholder, onSearchResults }) => {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
-  //const [location, setLocation] = useState(null);
-
-  // const fetchLocation = async () => {
-  //   try {
-  //     const { status } = await Location.requestForegroundPermissionsAsync();
-  //     if (status !== "granted") {
-  //       Alert.alert(
-  //         "Permission Denied",
-  //         "We need location access to provide better results."
-  //       );
-  //       return;
-  //     }
-  //     const loc = await Location.getCurrentPositionAsync({});
-  //     setLocation(loc.coords);
-  //     console.log(location);
-  //   } catch (error) {
-  //     console.error("Error fetching location:", error);
-  //   }
-  // };
-
-  // useEffect(() => {
-  //   fetchLocation();
-  // }, []);
+  const [loggedUserId, setLoggedUserId] = useState("");
 
   const handleSearchResults = useCallback(
     (data) => {
@@ -46,9 +25,21 @@ const SearchInput = ({ searchType, placeholder, onSearchResults }) => {
     [onSearchResults]
   );
 
+  const getLoggedUserId = async () => {
+    try {
+      const loggedUserId = await AsyncStorage.getItem("loggedUserId");
+      if (loggedUserId) {
+        setLoggedUserId(loggedUserId);
+      }
+      return null;
+    } catch (error) {
+      console.error("Error retrieving loggedUserId:", error);
+    }
+  };
+
   useEffect(() => {
     let debounceTimeout;
-
+    getLoggedUserId();
     if (isTyping) {
       debounceTimeout = setTimeout(() => {
         if (query.trim() === "") {
@@ -67,6 +58,7 @@ const SearchInput = ({ searchType, placeholder, onSearchResults }) => {
               {
                 params: {
                   query,
+                  userId: loggedUserId,
                   // lat: location?.latitude, // Send latitude
                   // lng: location?.longitude, // Send longitude
                 },

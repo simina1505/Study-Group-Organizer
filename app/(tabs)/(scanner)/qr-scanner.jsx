@@ -42,10 +42,7 @@ function QRScanner() {
 
     try {
       const url = new URL(data);
-      console.log(url);
-
       const token = url.searchParams.get("token");
-      console.log;
       if (token) {
         const response = await fetch("http://172.20.10.5:8000/joinGroup", {
           method: "POST",

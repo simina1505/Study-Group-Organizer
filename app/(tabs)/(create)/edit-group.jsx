@@ -12,16 +12,8 @@ import CustomButton from "../../../components/CustomButton";
 import { useLocalSearchParams, router } from "expo-router";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { MultipleSelectList } from "react-native-dropdown-select-list";
 
 const EditGroup = () => {
-  const subjectsList = [
-    { key: "1", value: "Math" },
-    { key: "2", value: "Science" },
-    { key: "3", value: "History" },
-    { key: "4", value: "Art" },
-    { key: "5", value: "Computer Science" },
-  ];
   const { groupId } = useLocalSearchParams();
   const [subjects, setSubjects] = useState([]);
   const [selected, setSelected] = useState([]);
@@ -59,21 +51,13 @@ const EditGroup = () => {
       );
       if (response.data.success) {
         const groupData = response.data.group;
-        console.log(groupData);
         setForm({
           name: groupData.name,
           description: groupData.description,
           privacy: groupData.privacy,
           city: groupData.city,
         });
-        console.log(form);
         setSubjects(groupData.subject);
-        const selectedSubjects = groupData.subject.map((subject) => {
-          return subjectsList.find((item) => item.value === subject);
-        });
-        // Set subjects as key-based values for selected
-        setSelected(selectedSubjects);
-        console.log(selected);
       }
     } catch (error) {
       console.error("Error fetching group data:", error);
@@ -123,8 +107,6 @@ const EditGroup = () => {
     }
 
     setIsSubmiting(true);
-    console.log("aici");
-    console.log(subjects);
     const group = {
       name: form.name,
       description: form.description,
@@ -136,7 +118,7 @@ const EditGroup = () => {
 
     try {
       await axios
-        .put(`http://172.20.10.5:8000/editGroup/${groupId}`, group)
+        .post(`http://172.20.10.5:8000/editGroup/${groupId}`, group)
         .then((response) => {
           if (response && response.data.success === true) {
             Alert.alert("Success", "Group updated successfully");
@@ -147,7 +129,6 @@ const EditGroup = () => {
         })
         .catch((error) => {
           Alert.alert("Error", error.message);
-          console.log("group edit error:", error);
         });
     } catch (error) {
       console.log(error.message);
@@ -186,16 +167,6 @@ const EditGroup = () => {
             keyboardType="default"
             placeholder="type a description"
           />
-
-          <View className="mx-6 mb-4">
-            <MultipleSelectList
-              setSelected={(val) => setSelected(val)}
-              data={subjectsList}
-              label="Subjects"
-              save="value"
-              notFoundText="No subject exists"
-            />
-          </View>
 
           <View className="flex-row items-center mx-6 mb-4">
             <Text className="text-lg mr-2">{form.privacy}</Text>

@@ -8,8 +8,9 @@ const TabsLayout = () => {
     <>
       <Tabs
         screenOptions={{
-          tabBarActiveTintColor: "##C9C8BB",
-          tabBarStyle: { backgroundColor: "#272737" },
+          tabBarActiveTintColor: "#504357",
+          tabBarInactiveTintColor: "#7f6b89",
+          tabBarStyle: { backgroundColor: "#c6bccb" },
         }}>
         <Tabs.Screen
           name="(home)"
@@ -38,16 +39,6 @@ const TabsLayout = () => {
             headerShown: false,
             tabBarIcon: ({ color }) => (
               <FontAwesome size={28} name="qrcode" color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="(profile)"
-          options={{
-            title: "Profile",
-            headerShown: false,
-            tabBarIcon: ({ color }) => (
-              <FontAwesome size={28} name="user" color={color} />
             ),
           }}
         />

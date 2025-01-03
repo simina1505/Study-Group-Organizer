@@ -61,22 +61,24 @@ const EditSession = () => {
           acceptedBy: sessionData.acceptedBy || [],
         });
         setGroupId(sessionData.groupId);
-        console.log(groupId);
-        const formattedStartDate = formatForCalendar(sessionData.startDate);
-        const formattedEndDate = formatForCalendar(sessionData.endDate);
+
+        const formattedStartDate = formatForCalendar(
+          sessionData.startDate
+        ).dateString;
+        const formattedEndDate = formatForCalendar(
+          sessionData.endDate
+        ).dateString;
 
         setMarkedDates({
-          [formattedStartDate.dateString]: {
+          [formattedStartDate]: {
             selected: true,
             selectedColor: "blue",
           },
-          [formattedEndDate.dateString]: {
+          [formattedEndDate]: {
             selected: true,
             selectedColor: "purple",
           },
         });
-        console.log(sessionData.startDate);
-        console.log(sessionData.endDate);
       }
     } catch (error) {
       console.error("Error fetching session data:", error);
@@ -125,7 +127,7 @@ const EditSession = () => {
   const formatForCalendar = (isoDate) => {
     const date = new Date(isoDate);
     const year = date.getFullYear();
-    const month = date.getMonth() + 1; // Months are 0-indexed
+    const month = date.getMonth() + 1;
     const day = date.getDate();
     return {
       dateString: `${year}-${String(month).padStart(2, "0")}-${String(
@@ -144,19 +146,16 @@ const EditSession = () => {
     setForm((prevForm) => {
       const updatedForm = { ...prevForm, [field]: value };
 
-      // Update marked dates, remove the previous marked date
       setMarkedDates((prevMarkedDates) => {
         const updatedDates = { ...prevMarkedDates };
-
-        // Remove the old marked date if selecting start or end date
+        console.log(selecting);
         if (selecting === "startDate" && prevForm.startDate) {
-          delete updatedDates[prevForm.startDate];
+          delete updatedDates[formatForCalendar(prevForm.startDate).dateString];
         }
         if (selecting === "endDate" && prevForm.endDate) {
-          delete updatedDates[prevForm.endDate];
+          delete updatedDates[formatForCalendar(prevForm.endDate).dateString];
         }
 
-        // Add the new selected date
         updatedDates[value] = {
           selected: true,
           selectedColor: selecting === "startDate" ? "blue" : "purple",
@@ -202,8 +201,6 @@ const EditSession = () => {
       acceptedBy: [loggedUser],
       groupId: groupId,
     };
-    console.log(session);
-    console.log(sessionId);
     try {
       const response = await axios.post(
         `http://172.20.10.5:8000/editSession/${sessionId}`,

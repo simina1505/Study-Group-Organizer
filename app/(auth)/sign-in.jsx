@@ -8,7 +8,6 @@ import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const SignIn = () => {
-  // const { setUser, setIsLogged } = useGlobalContext();
   const [isSubmiting, setIsSubmiting] = useState(false);
   const [form, setForm] = useState({
     email: "",
@@ -33,9 +32,6 @@ const SignIn = () => {
       })
       .then(async (response) => {
         if (response.status === 200 || response.status === 201) {
-          await AsyncStorage.removeItem("loggedUser");
-          await AsyncStorage.removeItem("token");
-
           const { token } = response.data;
           await AsyncStorage.setItem("token", token);
           const loggedUser = response.data.username;
@@ -49,7 +45,9 @@ const SignIn = () => {
       })
       .catch((error) => {
         console.log("sign in error:", error);
-        Alert.alert("Error", error.message);
+        Alert.alert(
+          "Invalid username or password. Please try again or create a new account!"
+        );
       });
     setIsSubmiting(false);
   };
@@ -57,7 +55,11 @@ const SignIn = () => {
     <SafeAreaView className=" h-full">
       <ScrollView>
         <View className="w-full justify-center min-h-[85vh] px-4 my-6 ">
-          <Text className="mx-6 mb-6 text-xl">Log in </Text>
+          <Text
+            className="mx-6 mb-6"
+            style={{ fontSize: 40, fontWeight: "bold" }}>
+            Sign in
+          </Text>
           <FormField
             title="Email"
             value={form.email}
@@ -81,12 +83,15 @@ const SignIn = () => {
             textStyles="text-white px-2 p-2"
           />
           <View className="justify-center flex-row gap-2 ">
-            <Text className="text-lg text-gray-100 font-pregular">
+            <Text
+              className="text-lg font-pregular"
+              style={{ color: "#b3b3b3" }}>
               Don't have account?
             </Text>
             <Link
               href="/sign-up"
-              className="text-lg text-gray-100 font-psemibold">
+              className="text-lg font-psemibold"
+              style={{ color: "#757575" }}>
               Sign up
             </Link>
           </View>

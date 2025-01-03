@@ -7,7 +7,6 @@ import { Link, router } from "expo-router";
 import axios from "axios";
 
 const SignUp = () => {
-  // const { setUser, setIsLogged } = useGlobalContext();
   const [isSubmiting, setIsSubmiting] = useState(false);
   const [form, setForm] = useState({
     username: "",
@@ -125,7 +124,11 @@ const SignUp = () => {
     <SafeAreaView className=" h-full">
       <ScrollView>
         <View className="w-full justify-center min-h-[85vh] px-4 my-6 ">
-          <Text className="mx-6 mb-6 text-xl">Create an account</Text>
+          <Text
+            className="mx-6 mb-3"
+            style={{ fontSize: 35, fontWeight: "bold" }}>
+            Create an account
+          </Text>
           {[
             {
               title: "First Name",
@@ -174,12 +177,15 @@ const SignUp = () => {
           />
 
           <View className="justify-center flex-row gap-2 ">
-            <Text className="text-lg text-gray-100 font-pregular">
+            <Text
+              className="text-lg font-pregular"
+              style={{ color: "#b3b3b3" }}>
               Have an account already?
             </Text>
             <Link
               href="/sign-in"
-              className="text-lg text-gray-100 font-psemibold">
+              className="text-lg font-psemibold"
+              style={{ color: "#757575" }}>
               Sign in
             </Link>
           </View>
